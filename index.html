@@ -99,6 +99,21 @@
         .exercise-icons { display: flex; gap: 12px; }
         .exercise-icons svg { width: 18px; height: 18px; color: var(--accent); cursor: pointer; }
         
+        /* Exercise rows within section card */
+        .exercise-row {
+            padding: 10px 14px;
+            border-bottom: 1px solid var(--border);
+        }
+        .exercise-row:last-child { border-bottom: none; }
+        .exercise-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        .exercise-info .exercise-name { font-weight: 600; font-size: 0.9rem; }
+        .exercise-info .exercise-target { font-size: 0.8rem; color: var(--text-secondary); }
+        
         /* Sets Table */
         .sets-table {
             width: 100%;
@@ -120,10 +135,11 @@
         .sets-table th.check-col { width: 32px; }
         
         .sets-table td {
-            padding: 6px 4px;
+            padding: 4px;
             text-align: center;
-            border-bottom: 1px solid var(--border);
+            border-bottom: 1px solid #eee;
         }
+        .sets-table tbody tr:last-child td { border-bottom: none; }
         .set-num { font-size: 0.8rem; color: var(--text-secondary); }
         .prev-val { font-size: 0.75rem; color: var(--text-secondary); }
         
@@ -709,10 +725,11 @@
                 const lastWeight = getLastWeight(ex.name);
                 const actualSets = Math.max(ex.sets, exLogs.length);
 
-                html += `<div class="group-header" style="background: var(--input-bg);">
-                    <span class="exercise-name">${ex.name}</span>
-                    <span class="exercise-target">${ex.sets}×${ex.reps}</span>
-                </div>`;
+                html += `<div class="exercise-row">
+                    <div class="exercise-info">
+                        <span class="exercise-name">${ex.name}</span>
+                        <span class="exercise-target">${ex.sets}×${ex.reps}</span>
+                    </div>`;
 
                 html += `<table class="sets-table"><thead><tr>
                     <th class="set-col">#</th>
