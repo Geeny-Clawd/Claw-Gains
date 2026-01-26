@@ -922,7 +922,9 @@
             `;
 
             exercises.forEach((ex, idx) => {
-                const exLogs = logs[ex.name] || [];
+                // Ensure logs[ex.name] exists as a reference to state, not a new local array
+                if (!logs[ex.name]) logs[ex.name] = [];
+                const exLogs = logs[ex.name];
                 const lastWeight = getLastWeight(ex.name);
                 const actualSets = Math.max(ex.sets, exLogs.length);
                 const note = ex.note ? `${ex.reps} · ${ex.note}` : ex.reps;
