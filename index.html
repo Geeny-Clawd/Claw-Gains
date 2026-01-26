@@ -186,16 +186,17 @@
             letter-spacing: -0.03em;
         }
 
-        /* Exercise Card - Edge to edge */
+        /* Exercise Card - Edge to edge with gap to show background */
         .group-card {
             background: var(--card);
-            border-bottom: 1px solid var(--divider);
-            padding: 14px 16px;
+            border-top: 1px solid var(--divider);
+            padding: 12px 16px;
+            margin-top: -1px;
         }
-        .group-card:first-child { border-top: 1px solid var(--divider); border-radius: 0; }
-        .group-card:last-child { border-radius: 0; }
+        .group-card:last-child { border-bottom: 1px solid var(--divider); }
+        .group-card + .group-card { margin-top: 8px; }
         .group-header {
-            padding: 12px 14px;
+            padding: 10px 0;
             border-bottom: 1px solid var(--divider);
             display: flex;
             justify-content: space-between;
@@ -220,7 +221,7 @@
 
         /* Exercise Row */
         .exercise-row {
-            padding: 12px 14px;
+            padding: 10px 0;
             border-bottom: 1px solid var(--divider);
         }
         .exercise-row:last-child { border-bottom: none; }
@@ -228,7 +229,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 12px;
+            margin-bottom: 8px;
         }
         .exercise-info .exercise-name {
             font-weight: 600;
@@ -244,41 +245,41 @@
         .sets-table {
             width: 100%;
             border-collapse: separate;
-            border-spacing: 0 4px;
+            border-spacing: 0 2px;
         }
         .sets-table th {
-            padding: 8px 6px;
-            font-size: 0.65rem;
+            padding: 6px 4px;
+            font-size: 0.6rem;
             font-weight: 600;
             color: var(--text-muted);
             text-transform: uppercase;
             letter-spacing: 0.1em;
             text-align: center;
         }
-        .sets-table th.set-col { width: 32px; }
-        .sets-table th.prev-col { width: 60px; }
-        .sets-table th.kg-col { width: 60px; }
-        .sets-table th.reps-col { width: 60px; }
-        .sets-table th.check-col { width: 36px; }
-        .sets-table th.remove-col { width: 32px; }
+        .sets-table th.set-col { width: 28px; }
+        .sets-table th.prev-col { width: 50px; }
+        .sets-table th.kg-col { width: 50px; }
+        .sets-table th.reps-col { width: 50px; }
+        .sets-table th.check-col { width: 32px; }
+        .sets-table th.remove-col { width: 28px; }
 
         .sets-table tbody tr { background: var(--input-bg); }
         .sets-table td {
-            padding: 8px 6px;
+            padding: 6px 4px;
             text-align: center;
         }
-        .sets-table td:first-child { border-radius: 8px 0 0 8px; }
-        .sets-table td:last-child { border-radius: 0 8px 8px 0; }
-        .set-num { font-size: 0.75rem; color: var(--text-muted); }
-        .prev-val { font-size: 0.7rem; color: var(--text-secondary); }
+        .sets-table td:first-child { border-radius: 6px 0 0 6px; }
+        .sets-table td:last-child { border-radius: 0 6px 6px 0; }
+        .set-num { font-size: 0.7rem; color: var(--text-muted); }
+        .prev-val { font-size: 0.65rem; color: var(--text-secondary); }
 
         .kg-input, .reps-input {
             width: 100%;
-            padding: 10px 8px;
+            padding: 8px 4px;
             border: 1px solid transparent;
-            border-radius: 8px;
+            border-radius: 6px;
             text-align: center;
-            font-size: 0.9rem;
+            font-size: 0.85rem;
             font-weight: 600;
             background: var(--card);
             color: var(--text);
@@ -289,10 +290,10 @@
         }
 
         .check-btn {
-            width: 26px;
-            height: 26px;
+            width: 24px;
+            height: 24px;
             border: 2px solid var(--divider);
-            border-radius: 8px;
+            border-radius: 6px;
             cursor: pointer;
             display: inline-flex;
             align-items: center;
@@ -311,11 +312,11 @@
 
         .add-set-btn {
             width: 100%;
-            padding: 12px;
+            padding: 8px;
             border: none;
             background: transparent;
             color: var(--accent);
-            font-size: 0.85rem;
+            font-size: 0.8rem;
             font-weight: 600;
             cursor: pointer;
         }
@@ -326,8 +327,8 @@
             border: none;
             color: var(--text-muted);
             cursor: pointer;
-            font-size: 0.75rem;
-            padding: 6px;
+            font-size: 0.7rem;
+            padding: 4px;
         }
         .remove-set-btn:hover { color: var(--danger); }
 
