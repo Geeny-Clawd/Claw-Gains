@@ -925,15 +925,15 @@
                 const exLogs = logs[ex.name] || [];
                 const lastWeight = getLastWeight(ex.name);
                 const actualSets = Math.max(ex.sets, exLogs.length);
-                const note = ex.note || '';
+                const note = ex.note ? `${ex.reps} · ${ex.note}` : ex.reps;
 
                 html += `<div class="exercise-row">
                     <div class="exercise-info">
                         <div class="exercise-info-left">
                             <span class="exercise-name">${ex.name}</span>
-                            ${note ? `<span class="exercise-note">${note}</span>` : ''}
+                            <span class="exercise-note">${note}</span>
                         </div>
-                        <span class="exercise-target">${ex.sets}×${ex.reps}</span>
+                        <span class="exercise-target">${ex.sets}×</span>
                     </div>`;
 
                 html += `<table class="sets-table"><thead><tr>
@@ -964,7 +964,7 @@
                             placeholder="${ex.targetWeight || '--'}" step="1" min="0"></td>
                         <td><input type="text" class="reps-input" value="${reps}" 
                             onchange="updateReps('${ex.name}', ${set}, this.value)"
-                            placeholder="${ex.reps}"></td>
+                            placeholder="Reps"></td>
                         <td>${isExtra ? `<button class="remove-set-btn" onclick="removeSet('${ex.name}', ${set})">✕</button>` : ''}</td>
                         <td>
                             <div class="check-btn ${done ? 'checked' : ''}" onclick="toggleSet('${ex.name}', ${set})">
