@@ -228,17 +228,30 @@
         .exercise-info {
             display: flex;
             justify-content: space-between;
-            align-items: center;
+            align-items: flex-start;
             margin-bottom: 8px;
+            gap: 12px;
+        }
+        .exercise-info-left {
+            flex: 1;
         }
         .exercise-info .exercise-name {
             font-weight: 600;
             font-size: 1rem;
             letter-spacing: -0.01em;
+            display: block;
+        }
+        .exercise-info .exercise-note {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            font-style: italic;
+            display: block;
+            margin-top: 2px;
         }
         .exercise-info .exercise-target {
             font-size: 0.8rem;
             color: var(--text-muted);
+            white-space: nowrap;
         }
 
         /* Sets Table */
@@ -260,7 +273,7 @@
         .sets-table th.prev-col { width: 50px; }
         .sets-table th.kg-col { width: 50px; }
         .sets-table th.reps-col { width: 50px; }
-        .sets-table th.check-col { width: 32px; }
+        .sets-table th.check-col { width: 32px; text-align: right; }
         .sets-table th.remove-col { width: 28px; }
 
         .sets-table tbody tr { background: var(--input-bg); }
@@ -270,6 +283,7 @@
         }
         .sets-table td:first-child { border-radius: 6px 0 0 6px; }
         .sets-table td:last-child { border-radius: 0 6px 6px 0; }
+        .sets-table td.check-col { text-align: right; border-radius: 0 6px 6px 0; padding-right: 6px; }
         .set-num { font-size: 0.7rem; color: var(--text-muted); }
         .prev-val { font-size: 0.65rem; color: var(--text-secondary); }
 
@@ -911,10 +925,14 @@
                 const exLogs = logs[ex.name] || [];
                 const lastWeight = getLastWeight(ex.name);
                 const actualSets = Math.max(ex.sets, exLogs.length);
+                const note = ex.note || '';
 
                 html += `<div class="exercise-row">
                     <div class="exercise-info">
-                        <span class="exercise-name">${ex.name}</span>
+                        <div class="exercise-info-left">
+                            <span class="exercise-name">${ex.name}</span>
+                            ${note ? `<span class="exercise-note">${note}</span>` : ''}
+                        </div>
                         <span class="exercise-target">${ex.sets}×${ex.reps}</span>
                     </div>`;
 
@@ -923,8 +941,8 @@
                     <th class="prev-col">Prev</th>
                     <th class="kg-col">kg</th>
                     <th class="reps-col">Reps</th>
-                    <th class="check-col"></th>
                     <th class="remove-col"></th>
+                    <th class="check-col"></th>
                 </tr></thead><tbody>`;
 
                 for (let set = 1; set <= actualSets; set++) {
@@ -943,16 +961,16 @@
                         <td class="prev-val">${prevDisplay}</td>
                         <td><input type="number" class="kg-input" value="${weight || ''}" 
                             onchange="updateWeight('${ex.name}', ${set}, this.value)"
-                            placeholder="${ex.targetWeight || '--'}"></td>
+                            placeholder="${ex.targetWeight || '--'}" step="1" min="0"></td>
                         <td><input type="text" class="reps-input" value="${reps}" 
                             onchange="updateReps('${ex.name}', ${set}, this.value)"
                             placeholder="${ex.reps}"></td>
+                        <td>${isExtra ? `<button class="remove-set-btn" onclick="removeSet('${ex.name}', ${set})">✕</button>` : ''}</td>
                         <td>
                             <div class="check-btn ${done ? 'checked' : ''}" onclick="toggleSet('${ex.name}', ${set})">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
                             </div>
                         </td>
-                        <td>${isExtra ? `<button class="remove-set-btn" onclick="removeSet('${ex.name}', ${set})">✕</button>` : ''}</td>
                     </tr>`;
                 }
 
