@@ -948,7 +948,7 @@
                 for (let set = 1; set <= actualSets; set++) {
                     const logData = exLogs[set - 1];
                     const weight = logData?.weight || (ex.targetWeight ? parseFloat(ex.targetWeight) : (lastWeight || 0));
-                    const reps = logData?.reps || ex.reps;
+                    const reps = logData?.reps || '';
                     const done = logData?.done || false;
                     const isExtra = set > ex.sets;
 
