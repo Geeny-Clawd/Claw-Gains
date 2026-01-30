@@ -724,6 +724,41 @@
         }
 
         let restInterval = null;
+        let audioContext = null;
+
+        // Play beep sound when timer completes
+        function playTimerBeep() {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+
+            const duration = 0.15;
+            const frequency = 880; // A5 note
+
+            // Play 3 short beeps
+            for (let i = 0; i < 3; i++) {
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+
+                oscillator.frequency.value = frequency;
+                oscillator.type = 'sine';
+
+                const startTime = audioContext.currentTime + (i * 0.25);
+                gainNode.gain.setValueAtTime(0.3, startTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
+
+                oscillator.start(startTime);
+                oscillator.stop(startTime + duration);
+            }
+
+            // Vibrate if supported
+            if (navigator.vibrate) {
+                navigator.vibrate([200, 100, 200, 100, 200]);
+            }
+        }
 
         // Rest Timer
         function startRest(seconds) {
@@ -733,6 +768,7 @@
             restInterval = setInterval(() => {
                 remaining--;
                 if (remaining <= 0) {
+                    playTimerBeep();
                     stopRest();
                 } else {
                     updateTimerDisplay(remaining);
