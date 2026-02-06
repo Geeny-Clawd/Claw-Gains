@@ -294,9 +294,29 @@
             outline: none;
             border-color: var(--accent);
         }
-        .kg-input.ghost-value, .reps-input.ghost-value {
+        .kg-input.ghost-value {
             color: var(--text-muted);
             opacity: 0.45;
+        }
+
+        .exercise-note-input {
+            width: 100%;
+            padding: 6px 0;
+            border: none;
+            border-bottom: 1px solid transparent;
+            background: transparent;
+            color: var(--text-secondary);
+            font-size: 0.75rem;
+            font-style: italic;
+            margin-bottom: 4px;
+        }
+        .exercise-note-input:focus {
+            outline: none;
+            border-bottom-color: var(--accent);
+        }
+        .exercise-note-input::placeholder {
+            color: var(--text-muted);
+            opacity: 0.5;
         }
 
         .check-btn {
@@ -695,7 +715,8 @@
             currentDay: 1,
             currentWeek: 'A',
             dayCompletion: {},
-            exerciseLogs: {}
+            exerciseLogs: {},
+            exerciseNotes: {}
         };
 
         // Initialize
@@ -950,13 +971,13 @@
             `;
 
             exercises.forEach((ex, idx) => {
-                // Ensure logs[ex.name] exists as a reference to state, not a new local array
                 if (!logs[ex.name]) logs[ex.name] = [];
                 const exLogs = logs[ex.name];
-                const lastWeight = getLastWeight(ex.name);
                 const lastData = getLastWorkoutData(ex.name);
                 const actualSets = Math.max(ex.sets, exLogs.length);
                 const note = ex.note ? `${ex.reps} · ${ex.note}` : ex.reps;
+                const escapedName = ex.name.replace(/'/g, "\\'");
+                const noteValue = getExerciseNote(ex.name).replace(/"/g, '&quot;');
 
                 html += `<div class="exercise-row">
                     <div class="exercise-info">
@@ -965,7 +986,10 @@
                             <span class="exercise-note">${note}</span>
                         </div>
                         <span class="exercise-target">${ex.sets}×</span>
-                    </div>`;
+                    </div>
+                    <input type="text" class="exercise-note-input" placeholder="Add note..."
+                        value="${noteValue}"
+                        onchange="updateExerciseNote('${escapedName}', this.value)">`;
 
                 html += `<table class="sets-table"><thead><tr>
                     <th class="set-col">#</th>
@@ -978,48 +1002,39 @@
 
                 for (let set = 1; set <= actualSets; set++) {
                     const logData = exLogs[set - 1];
-                    const hasRealData = logData?.weight > 0 || logData?.reps || logData?.done;
                     const isExtra = set > ex.sets;
+                    const hasRealData = logData?.weight > 0 || logData?.reps || logData?.done;
 
-                    let weight, reps, done, isGhost;
+                    let weight, ghostClass;
                     if (hasRealData) {
                         weight = logData.weight || '';
-                        reps = logData.reps || '';
-                        done = logData.done || false;
-                        isGhost = false;
+                        ghostClass = '';
                     } else if (lastData) {
                         weight = lastData.weight || '';
-                        reps = lastData.reps || '';
-                        done = false;
-                        isGhost = true;
+                        ghostClass = ' ghost-value';
                     } else {
                         weight = '';
-                        reps = '';
-                        done = false;
-                        isGhost = false;
+                        ghostClass = '';
                     }
+                    const reps = logData?.reps || '';
+                    const done = logData?.done || false;
 
-                    const ghostClass = isGhost ? ' ghost-value' : '';
-
-                    // Get previous workout data
                     const prevLog = getPreviousWorkout(ex.name);
                     const prevDisplay = prevLog ? `${prevLog.weight}×${prevLog.reps}` : '';
 
-                    const escapedName = ex.name.replace(/'/g, "\\'");
                     html += `<tr>
                         <td class="set-num">${set}${isExtra ? '*' : ''}</td>
                         <td class="prev-val">${prevDisplay}</td>
                         <td><input type="number" class="kg-input${ghostClass}" value="${weight}"
                             onchange="updateWeight('${escapedName}', ${set}, this.value)"
-                            oninput="this.classList.remove('ghost-value')"
+                            onfocus="this.classList.remove('ghost-value')"
                             placeholder="${ex.targetWeight || '--'}" step="1" min="0"></td>
-                        <td><input type="text" class="reps-input${ghostClass}" value="${reps}"
+                        <td><input type="text" class="reps-input" value="${reps}"
                             onchange="updateReps('${escapedName}', ${set}, this.value)"
-                            oninput="this.classList.remove('ghost-value')"
-                            placeholder="Reps"></td>
+                            placeholder="${ex.reps}"></td>
                         <td>${isExtra ? `<button class="remove-set-btn" onclick="removeSet('${escapedName}', ${set})">✕</button>` : ''}</td>
                         <td>
-                            <div class="check-btn ${done ? 'checked' : ''}" onclick="toggleSet('${escapedName}', ${set})">
+                            <div class="check-btn ${done ? 'checked' : ''}" onclick="toggleSet(event, '${escapedName}', ${set})">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
                             </div>
                         </td>
@@ -1072,9 +1087,21 @@
             return state.exerciseLogs[state.currentCycle][state.currentWeek][state.currentDay];
         }
 
+        function getExerciseNote(exerciseName) {
+            return state.exerciseNotes?.[state.currentCycle]?.[state.currentWeek]?.[state.currentDay]?.[exerciseName] || '';
+        }
+
+        function updateExerciseNote(exerciseName, value) {
+            if (!state.exerciseNotes[state.currentCycle]) state.exerciseNotes[state.currentCycle] = {};
+            if (!state.exerciseNotes[state.currentCycle][state.currentWeek]) state.exerciseNotes[state.currentCycle][state.currentWeek] = {};
+            if (!state.exerciseNotes[state.currentCycle][state.currentWeek][state.currentDay]) state.exerciseNotes[state.currentCycle][state.currentWeek][state.currentDay] = {};
+            state.exerciseNotes[state.currentCycle][state.currentWeek][state.currentDay][exerciseName] = value;
+            saveState();
+        }
+
         // Actions
-        function toggleSet(exerciseName, setNum) {
-            const row = event.target.closest('tr');
+        function toggleSet(e, exerciseName, setNum) {
+            const row = e.target.closest('tr');
             const kgInput = row.querySelector('.kg-input');
             const weight = parseFloat(kgInput?.value) || 0;
             const repsInput = row.querySelector('.reps-input');
@@ -1089,16 +1116,12 @@
             const log = dayLogs[exerciseName][setNum - 1];
             if (log.done) {
                 log.done = false;
-                event.target.classList.remove('checked');
             } else {
                 Object.assign(log, { weight, reps, done: true, cycle: state.currentCycle, week: state.currentWeek });
-                event.target.classList.add('checked');
-                // Commit ghost values as real data — remove ghost styling
-                kgInput?.classList.remove('ghost-value');
-                repsInput?.classList.remove('ghost-value');
             }
 
             saveState();
+            render();
         }
 
         function updateWeight(exerciseName, setNum, value) {
