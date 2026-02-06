@@ -210,14 +210,6 @@
             text-transform: uppercase;
             letter-spacing: 0.08em;
         }
-        .exercise-icons { display: flex; gap: 14px; }
-        .exercise-icons svg {
-            width: 18px;
-            height: 18px;
-            color: var(--text-muted);
-            cursor: pointer;
-        }
-        .exercise-icons svg:hover { color: var(--accent); }
 
         /* Exercise Row */
         .exercise-row {
@@ -301,6 +293,10 @@
         .kg-input:focus, .reps-input:focus {
             outline: none;
             border-color: var(--accent);
+        }
+        .kg-input.ghost-value, .reps-input.ghost-value {
+            color: var(--text-muted);
+            opacity: 0.45;
         }
 
         .check-btn {
@@ -520,22 +516,22 @@
                 mainA: {
                     weekA: [
                         { name: 'Back Squat', sets: 4, reps: '6-8', targetWeight: null},
-                        { name: 'ATG Split Squat', sets: 3, reps: '8 each leg', targetWeight: '18.25 kg'},
+                        { name: 'ATG Split Squat', sets: 3, reps: '8 each leg', targetWeight: 18.25},
                         { name: 'VMO Squat', sets: 3, reps: '8-12', targetWeight: null}
                     ],
                     weekB: [
                         { name: 'Front Squat', sets: 4, reps: '6-8', targetWeight: null},
-                        { name: 'Poliquin Step Up', sets: 3, reps: '15 each leg', targetWeight: '36.25 kg'},
+                        { name: 'Poliquin Step Up', sets: 3, reps: '15 each leg', targetWeight: 36.25},
                         { name: 'VMO Squat', sets: 3, reps: '8-12', targetWeight: null}
                     ]
                 },
                 prehab: [
                     { name: 'Hip Flexor Raises', sets: 3, reps: '20', targetWeight: null},
-                    { name: 'QL Extension', sets: 3, reps: '10-12 each side', targetWeight: '18.25 kg'}
+                    { name: 'QL Extension', sets: 3, reps: '10-12 each side', targetWeight: 18.25}
                 ],
                 accessories: [
                     { name: 'Walking Lunges', sets: 2, reps: '12 each leg', targetWeight: null},
-                    { name: 'Couch Stretch', sets: 3, reps: '20 reps + 1 min hold', targetWeight: '36.25 kg'}
+                    { name: 'Couch Stretch', sets: 3, reps: '20 reps + 1 min hold', targetWeight: 36.25}
                 ],
                 shoulderHealth: [],
                 extra: []
@@ -557,7 +553,7 @@
                     ],
                     weekB: [
                         { name: 'Flat Barbell Bench Press', sets: 4, reps: '5-7', targetWeight: null},
-                        { name: 'ATG Shoulder Press DB', sets: 3, reps: '10 each arm', targetWeight: '18.25 kg per hand'},
+                        { name: 'ATG Shoulder Press DB', sets: 3, reps: '10 each arm', targetWeight: 18.25},
                         { name: 'Incline Dumbbell Press', sets: 3, reps: '8-10', targetWeight: null},
                         { name: 'Dips', sets: 3, reps: '8-20', targetWeight: null}
                     ]
@@ -567,11 +563,11 @@
                     { name: 'Tricep Pushdown', sets: 3, reps: '10-15', targetWeight: null}
                 ],
                 shoulderHealth: [
-                    { name: 'Powell Raise', sets: 3, reps: '8', targetWeight: '7.25 kg'},
+                    { name: 'Powell Raise', sets: 3, reps: '8', targetWeight: 7.25},
                     { name: 'Face Pull', sets: 2, reps: '15', targetWeight: null}
                 ],
                 extra: [
-                    { name: 'Pigeon Push-Up', sets: 3, reps: '20', targetWeight: 'bodyweight'},
+                    { name: 'Pigeon Push-Up', sets: 3, reps: '20', targetWeight: null},
                     { name: 'Cable Flye/Pec Deck', sets: 2, reps: '12-15', targetWeight: null},
                     { name: 'Overhead Tricep Extension', sets: 2, reps: '12', targetWeight: null}
                 ]
@@ -587,22 +583,22 @@
                 mainA: {
                     weekA: [
                         { name: 'Romanian Deadlift', sets: 4, reps: '6-8', targetWeight: null},
-                        { name: 'Hip Thrust (Barbell)', sets: 4, reps: '6-10', targetWeight: '100 kg+'},
+                        { name: 'Hip Thrust (Barbell)', sets: 4, reps: '6-10', targetWeight: 100},
                         { name: 'Nordic Curl', sets: 3, reps: '5-8', targetWeight: null},
-                        { name: 'Back Extension', sets: 3, reps: '8-12', targetWeight: '18.25 kg'}
+                        { name: 'Back Extension', sets: 3, reps: '8-12', targetWeight: 18.25}
                     ],
                     weekB: [
                         { name: 'Romanian Deadlift', sets: 4, reps: '6-8', targetWeight: null},
-                        { name: 'Hip Thrust (Barbell)', sets: 4, reps: '6-10', targetWeight: '100 kg+'},
-                        { name: 'Seated Good Morning', sets: 3, reps: '10', targetWeight: '48 kg'},
+                        { name: 'Hip Thrust (Barbell)', sets: 4, reps: '6-10', targetWeight: 100},
+                        { name: 'Seated Good Morning', sets: 3, reps: '10', targetWeight: 48},
                         { name: 'Nordic Curl', sets: 3, reps: '5-8', targetWeight: null},
-                        { name: 'Back Extension', sets: 3, reps: '8-12', targetWeight: '18.25 kg'}
+                        { name: 'Back Extension', sets: 3, reps: '8-12', targetWeight: 18.25}
                     ]
                 },
                 calfTibialis: [
-                    { name: 'Straight-Leg Calf Raise', sets: 3, reps: '12 each leg', targetWeight: '18.25 kg'},
-                    { name: 'Tibialis Raise', sets: 3, reps: '15-20', targetWeight: '14.5 kg'},
-                    { name: 'Bent Calf Raise (seated)', sets: 3, reps: '15', targetWeight: '18.25 kg', isWeekB: true }
+                    { name: 'Straight-Leg Calf Raise', sets: 3, reps: '12 each leg', targetWeight: 18.25},
+                    { name: 'Tibialis Raise', sets: 3, reps: '15-20', targetWeight: 14.5},
+                    { name: 'Bent Calf Raise (seated)', sets: 3, reps: '15', targetWeight: 18.25, isWeekB: true }
                 ],
                 accessories: [
                     { name: 'Lying Leg Curl', sets: 3, reps: '10-12', targetWeight: null}
@@ -622,22 +618,22 @@
                 ],
                 mainA: {
                     weekA: [
-                        { name: 'Pull-Up', sets: 4, reps: '4-8', targetWeight: '10 reps bodyweight'},
+                        { name: 'Pull-Up', sets: 4, reps: '4-8', targetWeight: null},
                         { name: 'Barbell Row', sets: 4, reps: '6-8', targetWeight: null},
                         { name: 'Lat Pulldown', sets: 3, reps: '8-12', targetWeight: null},
-                        { name: 'Pullover', sets: 3, reps: '10', targetWeight: '18.25 kg'}
+                        { name: 'Pullover', sets: 3, reps: '10', targetWeight: 18.25}
                     ],
                     weekB: [
-                        { name: 'Pull-Up', sets: 4, reps: '4-8', targetWeight: '10 reps bodyweight'},
+                        { name: 'Pull-Up', sets: 4, reps: '4-8', targetWeight: null},
                         { name: 'Chest-Supported Row', sets: 4, reps: '6-8', targetWeight: null},
                         { name: 'Seated Cable Row', sets: 3, reps: '10-12', targetWeight: null},
-                        { name: 'Pullover', sets: 3, reps: '10', targetWeight: '18.25 kg'}
+                        { name: 'Pullover', sets: 3, reps: '10', targetWeight: 18.25}
                     ]
                 },
                 accessories: [
                     { name: 'Face Pull', sets: 3, reps: '12-15', targetWeight: null},
                     { name: 'Barbell/Dumbbell Curl', sets: 3, reps: '8-12', targetWeight: null},
-                    { name: 'External Rotation', sets: 3, reps: '8 each arm', targetWeight: '7.25 kg'},
+                    { name: 'External Rotation', sets: 3, reps: '8 each arm', targetWeight: 7.25},
                     { name: 'Trap 3 Raise', sets: 3, reps: '8', targetWeight: null}
                 ],
                 shoulderHealth: [],
@@ -662,7 +658,7 @@
                         { name: 'Rear Delt Flye', sets: 3, reps: '12-15', targetWeight: null}
                     ],
                     weekB: [
-                        { name: 'ATG Shoulder Press DB', sets: 3, reps: '10', targetWeight: '18.25 kg per hand' },
+                        { name: 'ATG Shoulder Press DB', sets: 3, reps: '10', targetWeight: 18.25 },
                         { name: 'Lateral Raise', sets: 3, reps: '12-15', targetWeight: null },
                         { name: 'Face Pull', sets: 3, reps: '12-15', targetWeight: null }
                     ]
@@ -674,15 +670,15 @@
                     { name: 'Tricep Pushdown (rope)', sets: 3, reps: '12-15', targetWeight: null}
                 ],
                 shoulderHealth: [
-                    { name: 'Powell Raise', sets: 2, reps: '10 each side', targetWeight: '7.25 kg'},
-                    { name: 'External Rotation', sets: 2, reps: '12 each arm', targetWeight: '7.25 kg'}
+                    { name: 'Powell Raise', sets: 2, reps: '10 each side', targetWeight: 7.25},
+                    { name: 'External Rotation', sets: 2, reps: '12 each arm', targetWeight: 7.25}
                 ],
                 neck: [
-                    { name: 'Neck Flexion', sets: 3, reps: '10', targetWeight: '7.25 kg'}
+                    { name: 'Neck Flexion', sets: 3, reps: '10', targetWeight: 7.25}
                 ],
                 flexibility: [
-                    { name: 'Jefferson Curl', sets: 2, reps: '10', targetWeight: '14.5 kg'},
-                    { name: 'Butterfly (weighted)', sets: 3, reps: '20', targetWeight: '8.75 kg'},
+                    { name: 'Jefferson Curl', sets: 2, reps: '10', targetWeight: 14.5},
+                    { name: 'Butterfly (weighted)', sets: 3, reps: '20', targetWeight: 8.75},
                     { name: 'Standing Pancake Pulse', sets: 3, reps: '20', targetWeight: null}
                 ],
                 extra: [
@@ -950,10 +946,6 @@
                 <div class="group-card">
                     <div class="group-header">
                         <h3>${title}</h3>
-                        <div class="exercise-icons">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
-                        </div>
                     </div>
             `;
 
@@ -962,6 +954,7 @@
                 if (!logs[ex.name]) logs[ex.name] = [];
                 const exLogs = logs[ex.name];
                 const lastWeight = getLastWeight(ex.name);
+                const lastData = getLastWorkoutData(ex.name);
                 const actualSets = Math.max(ex.sets, exLogs.length);
                 const note = ex.note ? `${ex.reps} · ${ex.note}` : ex.reps;
 
@@ -985,27 +978,48 @@
 
                 for (let set = 1; set <= actualSets; set++) {
                     const logData = exLogs[set - 1];
-                    const weight = logData?.weight || (ex.targetWeight ? parseFloat(ex.targetWeight) : (lastWeight || 0));
-                    const reps = logData?.reps || '';
-                    const done = logData?.done || false;
+                    const hasRealData = logData?.weight > 0 || logData?.reps || logData?.done;
                     const isExtra = set > ex.sets;
+
+                    let weight, reps, done, isGhost;
+                    if (hasRealData) {
+                        weight = logData.weight || '';
+                        reps = logData.reps || '';
+                        done = logData.done || false;
+                        isGhost = false;
+                    } else if (lastData) {
+                        weight = lastData.weight || '';
+                        reps = lastData.reps || '';
+                        done = false;
+                        isGhost = true;
+                    } else {
+                        weight = '';
+                        reps = '';
+                        done = false;
+                        isGhost = false;
+                    }
+
+                    const ghostClass = isGhost ? ' ghost-value' : '';
 
                     // Get previous workout data
                     const prevLog = getPreviousWorkout(ex.name);
                     const prevDisplay = prevLog ? `${prevLog.weight}×${prevLog.reps}` : '';
 
+                    const escapedName = ex.name.replace(/'/g, "\\'");
                     html += `<tr>
                         <td class="set-num">${set}${isExtra ? '*' : ''}</td>
                         <td class="prev-val">${prevDisplay}</td>
-                        <td><input type="number" class="kg-input" value="${weight || ''}" 
-                            onchange="updateWeight('${ex.name}', ${set}, this.value)"
+                        <td><input type="number" class="kg-input${ghostClass}" value="${weight}"
+                            onchange="updateWeight('${escapedName}', ${set}, this.value)"
+                            oninput="this.classList.remove('ghost-value')"
                             placeholder="${ex.targetWeight || '--'}" step="1" min="0"></td>
-                        <td><input type="text" class="reps-input" value="${reps}" 
-                            onchange="updateReps('${ex.name}', ${set}, this.value)"
+                        <td><input type="text" class="reps-input${ghostClass}" value="${reps}"
+                            onchange="updateReps('${escapedName}', ${set}, this.value)"
+                            oninput="this.classList.remove('ghost-value')"
                             placeholder="Reps"></td>
-                        <td>${isExtra ? `<button class="remove-set-btn" onclick="removeSet('${ex.name}', ${set})">✕</button>` : ''}</td>
+                        <td>${isExtra ? `<button class="remove-set-btn" onclick="removeSet('${escapedName}', ${set})">✕</button>` : ''}</td>
                         <td>
-                            <div class="check-btn ${done ? 'checked' : ''}" onclick="toggleSet('${ex.name}', ${set})">
+                            <div class="check-btn ${done ? 'checked' : ''}" onclick="toggleSet('${escapedName}', ${set})">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
                             </div>
                         </td>
@@ -1060,17 +1074,18 @@
 
         // Actions
         function toggleSet(exerciseName, setNum) {
-            const kgInput = event.target.closest('tr').querySelector('.kg-input');
+            const row = event.target.closest('tr');
+            const kgInput = row.querySelector('.kg-input');
             const weight = parseFloat(kgInput?.value) || 0;
-            const repsInput = event.target.closest('tr').querySelector('.reps-input');
+            const repsInput = row.querySelector('.reps-input');
             const reps = repsInput?.value || '';
-            
+
             const dayLogs = getExerciseLogs(true);
             if (!dayLogs[exerciseName]) dayLogs[exerciseName] = [];
             while (dayLogs[exerciseName].length < setNum) {
                 dayLogs[exerciseName].push({ weight: 0, reps: '', done: false });
             }
-            
+
             const log = dayLogs[exerciseName][setNum - 1];
             if (log.done) {
                 log.done = false;
@@ -1078,21 +1093,30 @@
             } else {
                 Object.assign(log, { weight, reps, done: true, cycle: state.currentCycle, week: state.currentWeek });
                 event.target.classList.add('checked');
+                // Commit ghost values as real data — remove ghost styling
+                kgInput?.classList.remove('ghost-value');
+                repsInput?.classList.remove('ghost-value');
             }
-            
+
             saveState();
         }
 
         function updateWeight(exerciseName, setNum, value) {
-            const dayLogs = getExerciseLogs();
-            if (!dayLogs?.[exerciseName]?.[setNum - 1]) return;
+            const dayLogs = getExerciseLogs(true);
+            if (!dayLogs[exerciseName]) dayLogs[exerciseName] = [];
+            while (dayLogs[exerciseName].length < setNum) {
+                dayLogs[exerciseName].push({ weight: 0, reps: '', done: false });
+            }
             dayLogs[exerciseName][setNum - 1].weight = parseFloat(value) || 0;
             saveState();
         }
 
         function updateReps(exerciseName, setNum, value) {
-            const dayLogs = getExerciseLogs();
-            if (!dayLogs?.[exerciseName]?.[setNum - 1]) return;
+            const dayLogs = getExerciseLogs(true);
+            if (!dayLogs[exerciseName]) dayLogs[exerciseName] = [];
+            while (dayLogs[exerciseName].length < setNum) {
+                dayLogs[exerciseName].push({ weight: 0, reps: '', done: false });
+            }
             dayLogs[exerciseName][setNum - 1].reps = value;
             saveState();
         }
@@ -1138,6 +1162,15 @@
             const history = getAllHistory();
             if (history[exerciseName] && history[exerciseName].length > 0) {
                 return history[exerciseName][history[exerciseName].length - 1].weight;
+            }
+            return null;
+        }
+
+        function getLastWorkoutData(exerciseName) {
+            const history = getAllHistory();
+            if (history[exerciseName] && history[exerciseName].length > 0) {
+                const last = history[exerciseName][history[exerciseName].length - 1];
+                return { weight: last.weight, reps: last.reps };
             }
             return null;
         }
