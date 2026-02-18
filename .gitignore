@@ -1,0 +1,6 @@
+__pycache__/
+*.log
+server.pid
+workout.db
+.python-version
+.claude/

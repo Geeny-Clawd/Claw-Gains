@@ -2,20 +2,18 @@
 #
 # Claw Gains Auto-Reloading Server
 # - Persistent server with auto-restart on crash
-# - Auto-reloads when index.html changes
+# - Auto-reloads when index.html or program.json changes
 #
 
-APP_DIR="/root/clawd/claw-gains"
-BIND_IP="0.0.0.0"
-PORT="8000"
-LOG_FILE="/tmp/claw-gains-server.log"
-PID_FILE="/tmp/claw-gains-server.pid"
-WATCH_FILE="$APP_DIR/index.html"
+APP_DIR="/home/openclaw/.openclaw/workspace/claw-gains"
+LOG_FILE="/home/openclaw/.openclaw/workspace/claw-gains/server.log"
+PID_FILE="/home/openclaw/.openclaw/workspace/claw-gains/server.pid"
+WATCH_FILES="$APP_DIR/index.html $APP_DIR/program.json $APP_DIR/server.py"
 
 # Function to start the server
 start_server() {
     cd "$APP_DIR"
-    nohup python3 -m http.server "$PORT" --bind "$BIND_IP" > "$LOG_FILE" 2>&1 &
+    nohup uv run python server.py > "$LOG_FILE" 2>&1 &
     echo $! > "$PID_FILE"
     echo "[$(date)] Server started with PID $(cat $PID_FILE)" >> "$LOG_FILE"
 }
@@ -45,9 +43,8 @@ trap 'stop_server; exit 0' SIGTERM SIGINT SIGHUP
 # Start the server
 start_server
 
-# Watch for changes to index.html and restart on change
-# Using --format to get just the event type
-while inotifywait -e modify,close_write,move_self "$WATCH_FILE" 2>/dev/null; do
-    echo "[$(date)] Detected change to index.html, reloading..." >> "$LOG_FILE"
+# Watch for changes and restart on change
+while inotifywait -e modify,close_write,move_self $WATCH_FILES 2>/dev/null; do
+    echo "[$(date)] Detected file change, reloading..." >> "$LOG_FILE"
     restart_server
 done

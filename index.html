@@ -294,7 +294,7 @@
             outline: none;
             border-color: var(--accent);
         }
-        .kg-input.ghost-value, .reps-input.ghost-value {
+        .kg-input::placeholder, .reps-input::placeholder {
             color: var(--text-muted);
             opacity: 0.45;
         }
@@ -469,6 +469,38 @@
         .group-card:nth-child(4) { animation-delay: 0.2s; }
         .group-card:nth-child(5) { animation-delay: 0.25s; }
         .group-card:nth-child(6) { animation-delay: 0.3s; }
+
+        /* Notes */
+        .day-note-area {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--divider);
+            border-radius: 10px;
+            font-size: 0.85rem;
+            font-family: inherit;
+            background: var(--input-bg);
+            color: var(--text);
+            resize: vertical;
+            min-height: 38px;
+            max-height: 120px;
+        }
+        .day-note-area:focus { outline: none; border-color: var(--accent); }
+        .day-note-area::placeholder { color: var(--text-muted); }
+        .day-note-wrap { margin: 0 16px 8px; }
+
+        .exercise-note-input {
+            width: 100%;
+            padding: 4px 0;
+            border: none;
+            border-bottom: 1px solid transparent;
+            font-size: 0.75rem;
+            font-family: inherit;
+            background: transparent;
+            color: var(--text-secondary);
+            margin-top: 2px;
+        }
+        .exercise-note-input:focus { outline: none; border-bottom-color: var(--accent); }
+        .exercise-note-input::placeholder { color: var(--text-muted); font-style: italic; }
     </style>
 </head>
 <body>
@@ -491,7 +523,7 @@
     <div id="mainView">
         <!-- Week Toggle -->
         <div class="week-toggle">
-            <button class="week-btn week-a active" id="weekABtn" onclick="setWeek('A')">Week A</button>
+            <button class="week-btn week-a" id="weekABtn" onclick="setWeek('A')">Week A</button>
             <button class="week-btn week-b" id="weekBBtn" onclick="setWeek('B')">Week B</button>
         </div>
         
@@ -503,191 +535,8 @@
     </div>
     
     <script>
-        // Program Data - 5 Day Hypertrophy with A/B Weeks (Adrian's Program)
-        const programData = {
-            1: { // Day 1: Lower - Quad Emphasis
-                name: 'Lower — Quad Emphasis',
-                warmup: [
-                    { name: 'Sled — Backwards', sets: 1, reps: '3 min', targetWeight: null},
-                    { name: 'Pigeon Stretch', sets: 2, reps: '45 sec/leg', targetWeight: null},
-                    { name: 'Butterfly Stretch', sets: 1, reps: '15-20 reps', targetWeight: null},
-                    { name: 'Bodyweight Squats', sets: 1, reps: '10 reps', targetWeight: null}
-                ],
-                mainA: {
-                    weekA: [
-                        { name: 'Back Squat', sets: 4, reps: '6-8', targetWeight: null},
-                        { name: 'ATG Split Squat', sets: 3, reps: '8 each leg', targetWeight: 18.25},
-                        { name: 'VMO Squat', sets: 3, reps: '8-12', targetWeight: null}
-                    ],
-                    weekB: [
-                        { name: 'Front Squat', sets: 4, reps: '6-8', targetWeight: null},
-                        { name: 'Poliquin Step Up', sets: 3, reps: '15 each leg', targetWeight: 36.25},
-                        { name: 'VMO Squat', sets: 3, reps: '8-12', targetWeight: null}
-                    ]
-                },
-                prehab: [
-                    { name: 'Hip Flexor Raises', sets: 3, reps: '20', targetWeight: null},
-                    { name: 'QL Extension', sets: 3, reps: '10-12 each side', targetWeight: 18.25}
-                ],
-                accessories: [
-                    { name: 'Walking Lunges', sets: 2, reps: '12 each leg', targetWeight: null},
-                    { name: 'Couch Stretch', sets: 3, reps: '20 reps + 1 min hold', targetWeight: 36.25}
-                ],
-                shoulderHealth: [],
-                extra: []
-            },
-            2: { // Day 2: Upper Push
-                name: 'Upper Push',
-                warmup: [
-                    { name: 'Sled — Backwards', sets: 1, reps: '3 min', targetWeight: null},
-                    { name: 'T-Stretch', sets: 1, reps: '1 min', targetWeight: null},
-                    { name: 'Band Pull-Aparts', sets: 1, reps: '20 reps', targetWeight: null},
-                    { name: 'Push-Up', sets: 1, reps: '10 reps', targetWeight: null}
-                ],
-                mainA: {
-                    weekA: [
-                        { name: 'Flat Barbell Bench Press', sets: 4, reps: '5-7', targetWeight: null},
-                        { name: 'ATG Incline Press', sets: 3, reps: '8-10', targetWeight: null},
-                        { name: 'Overhead Press', sets: 3, reps: '6-8', targetWeight: null},
-                        { name: 'Dips', sets: 3, reps: '8-20', targetWeight: null}
-                    ],
-                    weekB: [
-                        { name: 'Flat Barbell Bench Press', sets: 4, reps: '5-7', targetWeight: null},
-                        { name: 'ATG Shoulder Press DB', sets: 3, reps: '10 each arm', targetWeight: 18.25},
-                        { name: 'Incline Dumbbell Press', sets: 3, reps: '8-10', targetWeight: null},
-                        { name: 'Dips', sets: 3, reps: '8-20', targetWeight: null}
-                    ]
-                },
-                accessories: [
-                    { name: 'Lateral Raise', sets: 3, reps: '12-15', targetWeight: null},
-                    { name: 'Tricep Pushdown', sets: 3, reps: '10-15', targetWeight: null}
-                ],
-                shoulderHealth: [
-                    { name: 'Powell Raise', sets: 3, reps: '8', targetWeight: 7.25},
-                    { name: 'Face Pull', sets: 2, reps: '15', targetWeight: null}
-                ],
-                extra: [
-                    { name: 'Pigeon Push-Up', sets: 3, reps: '20', targetWeight: null},
-                    { name: 'Cable Flye/Pec Deck', sets: 2, reps: '12-15', targetWeight: null},
-                    { name: 'Overhead Tricep Extension', sets: 2, reps: '12', targetWeight: null}
-                ]
-            },
-            3: { // Day 3: Lower - Posterior Chain
-                name: 'Lower — Posterior Chain',
-                warmup: [
-                    { name: 'Sled — Backwards', sets: 1, reps: '3 min', targetWeight: null},
-                    { name: 'Elephant Walk', sets: 1, reps: '15 reps/side', targetWeight: null},
-                    { name: 'Standing Pancake Pulse', sets: 1, reps: '20 reps', targetWeight: null},
-                    { name: 'Glute Bridge', sets: 1, reps: '10 reps, 2 sec hold', targetWeight: null}
-                ],
-                mainA: {
-                    weekA: [
-                        { name: 'Romanian Deadlift', sets: 4, reps: '6-8', targetWeight: null},
-                        { name: 'Hip Thrust (Barbell)', sets: 4, reps: '6-10', targetWeight: 100},
-                        { name: 'Nordic Curl', sets: 3, reps: '5-8', targetWeight: null},
-                        { name: 'Back Extension', sets: 3, reps: '8-12', targetWeight: 18.25}
-                    ],
-                    weekB: [
-                        { name: 'Romanian Deadlift', sets: 4, reps: '6-8', targetWeight: null},
-                        { name: 'Hip Thrust (Barbell)', sets: 4, reps: '6-10', targetWeight: 100},
-                        { name: 'Seated Good Morning', sets: 3, reps: '10', targetWeight: 48},
-                        { name: 'Nordic Curl', sets: 3, reps: '5-8', targetWeight: null},
-                        { name: 'Back Extension', sets: 3, reps: '8-12', targetWeight: 18.25}
-                    ]
-                },
-                calfTibialis: [
-                    { name: 'Straight-Leg Calf Raise', sets: 3, reps: '12 each leg', targetWeight: 18.25},
-                    { name: 'Tibialis Raise', sets: 3, reps: '15-20', targetWeight: 14.5},
-                    { name: 'Bent Calf Raise (seated)', sets: 3, reps: '15', targetWeight: 18.25, isWeekB: true }
-                ],
-                accessories: [
-                    { name: 'Lying Leg Curl', sets: 3, reps: '10-12', targetWeight: null}
-                ],
-                shoulderHealth: [],
-                extra: [
-                    { name: 'Couch Stretch', sets: 1, reps: '45 sec/side', targetWeight: null}
-                ]
-            },
-            4: { // Day 4: Upper Pull
-                name: 'Upper Pull',
-                warmup: [
-                    { name: 'Sled — Backwards', sets: 1, reps: '3 min', targetWeight: null},
-                    { name: "Butcher's Block Stretch", sets: 1, reps: '1 min', targetWeight: null},
-                    { name: 'Band Pull-Apart', sets: 1, reps: '15 reps', targetWeight: null},
-                    { name: 'Ring Row/Light Cable Row', sets: 1, reps: '10 reps', targetWeight: null}
-                ],
-                mainA: {
-                    weekA: [
-                        { name: 'Pull-Up', sets: 4, reps: '4-8', targetWeight: null},
-                        { name: 'Barbell Row', sets: 4, reps: '6-8', targetWeight: null},
-                        { name: 'Lat Pulldown', sets: 3, reps: '8-12', targetWeight: null},
-                        { name: 'Pullover', sets: 3, reps: '10', targetWeight: 18.25}
-                    ],
-                    weekB: [
-                        { name: 'Pull-Up', sets: 4, reps: '4-8', targetWeight: null},
-                        { name: 'Chest-Supported Row', sets: 4, reps: '6-8', targetWeight: null},
-                        { name: 'Seated Cable Row', sets: 3, reps: '10-12', targetWeight: null},
-                        { name: 'Pullover', sets: 3, reps: '10', targetWeight: 18.25}
-                    ]
-                },
-                accessories: [
-                    { name: 'Face Pull', sets: 3, reps: '12-15', targetWeight: null},
-                    { name: 'Barbell/Dumbbell Curl', sets: 3, reps: '8-12', targetWeight: null},
-                    { name: 'External Rotation', sets: 3, reps: '8 each arm', targetWeight: 7.25},
-                    { name: 'Trap 3 Raise', sets: 3, reps: '8', targetWeight: null}
-                ],
-                shoulderHealth: [],
-                extra: [
-                    { name: 'Straight-Arm Pulldown', sets: 2, reps: '12-15', targetWeight: null},
-                    { name: 'Scott Curl', sets: 2, reps: '10-12', targetWeight: null},
-                    { name: 'Rear Delt Flye', sets: 2, reps: '15', targetWeight: null}
-                ]
-            },
-            5: { // Day 5: Arms, Shoulders & Mobility
-                name: 'Arms, Shoulders & Mobility',
-                warmup: [
-                    { name: 'Sled — Backwards', sets: 1, reps: '3 min', targetWeight: null},
-                    { name: 'Shoulder Circles', sets: 1, reps: '20 each', targetWeight: null},
-                    { name: 'Band Pull-Apart', sets: 1, reps: '15 reps', targetWeight: null},
-                    { name: 'Light DB Press', sets: 1, reps: '10 reps', targetWeight: null}
-                ],
-                mainA: {
-                    weekA: [
-                        { name: 'Seated Dumbbell Press', sets: 3, reps: '8-10', targetWeight: null},
-                        { name: 'Lateral Raise', sets: 3, reps: '12-15', targetWeight: null},
-                        { name: 'Rear Delt Flye', sets: 3, reps: '12-15', targetWeight: null}
-                    ],
-                    weekB: [
-                        { name: 'ATG Shoulder Press DB', sets: 3, reps: '10', targetWeight: 18.25 },
-                        { name: 'Lateral Raise', sets: 3, reps: '12-15', targetWeight: null },
-                        { name: 'Face Pull', sets: 3, reps: '12-15', targetWeight: null }
-                    ]
-                },
-                accessories: [
-                    { name: 'Scott Curl (preacher)', sets: 3, reps: '10', targetWeight: null},
-                    { name: 'French Press', sets: 3, reps: '10', targetWeight: null},
-                    { name: 'Scott Curl (different grip)', sets: 3, reps: '10-12', targetWeight: null},
-                    { name: 'Tricep Pushdown (rope)', sets: 3, reps: '12-15', targetWeight: null}
-                ],
-                shoulderHealth: [
-                    { name: 'Powell Raise', sets: 2, reps: '10 each side', targetWeight: 7.25},
-                    { name: 'External Rotation', sets: 2, reps: '12 each arm', targetWeight: 7.25}
-                ],
-                neck: [
-                    { name: 'Neck Flexion', sets: 3, reps: '10', targetWeight: 7.25}
-                ],
-                flexibility: [
-                    { name: 'Jefferson Curl', sets: 2, reps: '10', targetWeight: 14.5},
-                    { name: 'Butterfly (weighted)', sets: 3, reps: '20', targetWeight: 8.75},
-                    { name: 'Standing Pancake Pulse', sets: 3, reps: '20', targetWeight: null}
-                ],
-                extra: [
-                    { name: 'Scott Curl (slow negative)', sets: 2, reps: '10-12', targetWeight: null},
-                    { name: 'Close-Grip Bench/Dips', sets: 2, reps: '8-12', targetWeight: null},
-                    { name: 'Pigeon Push-Up', sets: 2, reps: '15', targetWeight: null}
-                ]
-            }
-        };
+        // Program Data - loaded from program.json
+        let programData = null;
 
         // State
         let state = {
@@ -695,12 +544,17 @@
             currentDay: 1,
             currentWeek: 'A',
             dayCompletion: {},
-            exerciseLogs: {}
+            exerciseLogs: {},
+            dayNotes: {},
+            exerciseNotes: {}
         };
 
         // Initialize
-        function init() {
+        async function init() {
+            const resp = await fetch('/program.json');
+            programData = await resp.json();
             loadState();
+            renderWeekButtons();
             render();
         }
 
@@ -717,6 +571,75 @@
         function saveState() {
             clearHistoryCache();
             localStorage.setItem('clawgains_state', JSON.stringify(state));
+            debouncedSync();
+        }
+
+        // Server sync (fire-and-forget)
+        let syncTimer = null;
+        function debouncedSync() {
+            clearTimeout(syncTimer);
+            syncTimer = setTimeout(syncToServer, 2000);
+        }
+
+        function getSectionForExercise(dayNum, exerciseName) {
+            const dayData = programData[dayNum];
+            const weekKey = 'week' + state.currentWeek;
+            const sectionMap = {
+                warmup: dayData.warmup || [],
+                mainA: (dayData.mainA[weekKey] || dayData.mainA.weekA || []),
+                prehab: dayData.prehab || [],
+                accessories: dayData.accessories || [],
+                shoulderHealth: dayData.shoulderHealth || [],
+                calfTibialis: dayData.calfTibialis || [],
+                neck: dayData.neck || [],
+                flexibility: dayData.flexibility || [],
+                extra: dayData.extra || []
+            };
+            for (const [section, exercises] of Object.entries(sectionMap)) {
+                if (exercises.some(ex => ex.name === exerciseName)) return section;
+            }
+            return 'unknown';
+        }
+
+        function syncToServer() {
+            if (!programData) return;
+            const cycle = state.currentCycle;
+            const week = state.currentWeek;
+            const day = state.currentDay;
+            const logs = state.exerciseLogs[cycle]?.[week]?.[day] || {};
+            const isDone = state.dayCompletion[cycle]?.[week]?.[day];
+            const dayNote = (state.dayNotes && state.dayNotes[cycle]?.[week]?.[day]) || null;
+
+            const exercises = [];
+            for (const [name, sets] of Object.entries(logs)) {
+                const exNote = (state.exerciseNotes && state.exerciseNotes[cycle]?.[week]?.[day]?.[name]) || null;
+                exercises.push({
+                    name,
+                    section: getSectionForExercise(day, name),
+                    note: exNote,
+                    sets: sets.map((s, i) => ({
+                        set_num: i + 1,
+                        weight: s.weight || null,
+                        reps: s.reps || null,
+                        done: !!s.done
+                    }))
+                });
+            }
+
+            const payload = {
+                cycle,
+                week,
+                day,
+                day_note: dayNote,
+                completed_at: isDone ? new Date().toISOString() : null,
+                exercises
+            };
+
+            fetch('/api/workout', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            }).catch(() => {}); // fire-and-forget
         }
 
         let restInterval = null;
@@ -789,10 +712,14 @@
         // Week Toggle
         function setWeek(week) {
             state.currentWeek = week;
-            document.getElementById('weekABtn').classList.toggle('active', week === 'A');
-            document.getElementById('weekBBtn').classList.toggle('active', week === 'B');
+            renderWeekButtons();
             saveState();
             render();
+        }
+
+        function renderWeekButtons() {
+            document.getElementById('weekABtn').classList.toggle('active', state.currentWeek === 'A');
+            document.getElementById('weekBBtn').classList.toggle('active', state.currentWeek === 'B');
         }
 
         // Day Navigation
@@ -817,6 +744,7 @@
 
         // Render
         function render() {
+            renderWeekButtons();
             renderDayNav();
             renderWorkout();
         }
@@ -852,6 +780,13 @@
             const isDayComplete = state.dayCompletion[state.currentCycle]?.[state.currentWeek]?.[state.currentDay];
 
             let html = `<h2>${dayData.name}</h2>`;
+
+            // Day note
+            const dayNoteVal = (state.dayNotes[state.currentCycle]?.[state.currentWeek]?.[state.currentDay]) || '';
+            html += `<div class="day-note-wrap">
+                <textarea class="day-note-area" placeholder="Session notes..."
+                    onchange="updateDayNote(this.value)">${dayNoteVal}</textarea>
+            </div>`;
 
             // Warm-up
             html += renderSection('Warm-up', dayData.warmup, logs, false);
@@ -913,16 +848,8 @@
                 html += renderSection('Extra Time', filteredExtra, logs, true);
             }
 
-            // Mark Complete Button
-            const completedDays = getCompletedDaysInWeek();
-            html += `
-                <button class="mark-done-btn ${isDayComplete ? 'done' : ''}" 
-                        onclick="toggleDayComplete()">
-                    ${isDayComplete ? '✓ Day Complete' : 'Mark Day Complete'}
-                </button>
-            `;
-
             // Next Cycle Banner (when week complete)
+            const completedDays = getCompletedDaysInWeek();
             if (completedDays === 5) {
                 html += `
                     <div style="margin: 16px; padding: 16px; background: linear-gradient(135deg, var(--accent), #5856d6); border-radius: 12px; text-align: center; color: white;">
@@ -958,11 +885,17 @@
                 const actualSets = Math.max(ex.sets, exLogs.length);
                 const note = ex.note ? `${ex.reps} · ${ex.note}` : ex.reps;
 
+                const escapedNameAttr = ex.name.replace(/"/g, '&quot;');
+                const exNoteVal = (state.exerciseNotes[state.currentCycle]?.[state.currentWeek]?.[state.currentDay]?.[ex.name]) || '';
+
                 html += `<div class="exercise-row">
                     <div class="exercise-info">
                         <div class="exercise-info-left">
                             <span class="exercise-name">${ex.name}</span>
                             <span class="exercise-note">${note}</span>
+                            <input type="text" class="exercise-note-input" placeholder="Add note..."
+                                value="${exNoteVal.replace(/"/g, '&quot;')}"
+                                onchange="updateExerciseNote('${ex.name.replace(/'/g, "\\'")}', this.value)">
                         </div>
                         <span class="exercise-target">${ex.sets}×</span>
                     </div>`;
@@ -976,30 +909,39 @@
                     <th class="check-col"></th>
                 </tr></thead><tbody>`;
 
+                // Find best ghost data: prefer earlier set in current session, fall back to last session
+                function getGhostForSet(setIndex) {
+                    // Check earlier sets in current session for real data
+                    for (let i = setIndex - 1; i >= 0; i--) {
+                        const prev = exLogs[i];
+                        if (prev && (prev.weight > 0 || prev.reps || prev.done)) {
+                            return { weight: prev.weight || '', reps: prev.reps || '' };
+                        }
+                    }
+                    // Fall back to last session data
+                    return lastData ? { weight: lastData.weight || '', reps: lastData.reps || '' } : null;
+                }
+
                 for (let set = 1; set <= actualSets; set++) {
                     const logData = exLogs[set - 1];
                     const hasRealData = logData?.weight > 0 || logData?.reps || logData?.done;
                     const isExtra = set > ex.sets;
 
-                    let weight, reps, done, isGhost;
+                    let weight, reps, done, ghostWeight, ghostReps;
+                    const ghost = getGhostForSet(set - 1);
                     if (hasRealData) {
                         weight = logData.weight || '';
                         reps = logData.reps || '';
                         done = logData.done || false;
-                        isGhost = false;
-                    } else if (lastData) {
-                        weight = lastData.weight || '';
-                        reps = lastData.reps || '';
-                        done = false;
-                        isGhost = true;
+                        ghostWeight = '';
+                        ghostReps = '';
                     } else {
                         weight = '';
                         reps = '';
                         done = false;
-                        isGhost = false;
+                        ghostWeight = ghost ? ghost.weight : '';
+                        ghostReps = ghost ? ghost.reps : '';
                     }
-
-                    const ghostClass = isGhost ? ' ghost-value' : '';
 
                     // Get previous workout data
                     const prevLog = getPreviousWorkout(ex.name);
@@ -1009,14 +951,12 @@
                     html += `<tr>
                         <td class="set-num">${set}${isExtra ? '*' : ''}</td>
                         <td class="prev-val">${prevDisplay}</td>
-                        <td><input type="number" class="kg-input${ghostClass}" value="${weight}"
+                        <td><input type="number" class="kg-input" value="${weight}"
                             onchange="updateWeight('${escapedName}', ${set}, this.value)"
-                            oninput="this.classList.remove('ghost-value')"
-                            placeholder="${ex.targetWeight || '--'}" step="1" min="0"></td>
-                        <td><input type="text" class="reps-input${ghostClass}" value="${reps}"
+                            placeholder="${ghostWeight || ex.targetWeight || '--'}" step="1" min="0"></td>
+                        <td><input type="text" class="reps-input" value="${reps}"
                             onchange="updateReps('${escapedName}', ${set}, this.value)"
-                            oninput="this.classList.remove('ghost-value')"
-                            placeholder="Reps"></td>
+                            placeholder="${ghostReps || 'Reps'}"></td>
                         <td>${isExtra ? `<button class="remove-set-btn" onclick="removeSet('${escapedName}', ${set})">✕</button>` : ''}</td>
                         <td>
                             <div class="check-btn ${done ? 'checked' : ''}" onclick="toggleSet('${escapedName}', ${set})">
@@ -1076,9 +1016,11 @@
         function toggleSet(exerciseName, setNum) {
             const row = event.target.closest('tr');
             const kgInput = row.querySelector('.kg-input');
-            const weight = parseFloat(kgInput?.value) || 0;
             const repsInput = row.querySelector('.reps-input');
-            const reps = repsInput?.value || '';
+
+            // Read actual value; if empty, use placeholder (ghost value) as the committed value
+            const weight = parseFloat(kgInput?.value || kgInput?.placeholder) || 0;
+            const reps = repsInput?.value || repsInput?.placeholder || '';
 
             const dayLogs = getExerciseLogs(true);
             if (!dayLogs[exerciseName]) dayLogs[exerciseName] = [];
@@ -1089,16 +1031,12 @@
             const log = dayLogs[exerciseName][setNum - 1];
             if (log.done) {
                 log.done = false;
-                event.target.classList.remove('checked');
             } else {
                 Object.assign(log, { weight, reps, done: true, cycle: state.currentCycle, week: state.currentWeek });
-                event.target.classList.add('checked');
-                // Commit ghost values as real data — remove ghost styling
-                kgInput?.classList.remove('ghost-value');
-                repsInput?.classList.remove('ghost-value');
             }
 
             saveState();
+            render();
         }
 
         function updateWeight(exerciseName, setNum, value) {
@@ -1109,6 +1047,7 @@
             }
             dayLogs[exerciseName][setNum - 1].weight = parseFloat(value) || 0;
             saveState();
+            render();
         }
 
         function updateReps(exerciseName, setNum, value) {
@@ -1118,6 +1057,24 @@
                 dayLogs[exerciseName].push({ weight: 0, reps: '', done: false });
             }
             dayLogs[exerciseName][setNum - 1].reps = value;
+            saveState();
+            render();
+        }
+
+        function updateDayNote(value) {
+            const c = state.currentCycle, w = state.currentWeek, d = state.currentDay;
+            if (!state.dayNotes[c]) state.dayNotes[c] = {};
+            if (!state.dayNotes[c][w]) state.dayNotes[c][w] = {};
+            state.dayNotes[c][w][d] = value;
+            saveState();
+        }
+
+        function updateExerciseNote(exerciseName, value) {
+            const c = state.currentCycle, w = state.currentWeek, d = state.currentDay;
+            if (!state.exerciseNotes[c]) state.exerciseNotes[c] = {};
+            if (!state.exerciseNotes[c][w]) state.exerciseNotes[c][w] = {};
+            if (!state.exerciseNotes[c][w][d]) state.exerciseNotes[c][w][d] = {};
+            state.exerciseNotes[c][w][d][exerciseName] = value;
             saveState();
         }
 
@@ -1154,7 +1111,26 @@
         }
 
         function finishWorkout() {
+            // Mark day as complete
+            if (!state.dayCompletion[state.currentCycle]) state.dayCompletion[state.currentCycle] = {};
+            if (!state.dayCompletion[state.currentCycle][state.currentWeek]) state.dayCompletion[state.currentCycle][state.currentWeek] = {};
+            
+            const key = state.currentDay;
+            const wasComplete = state.dayCompletion[state.currentCycle][state.currentWeek][key];
+            state.dayCompletion[state.currentCycle][state.currentWeek][key] = true;
+            
+            saveState();
+            
+            // Show feedback
             alert('Workout saved! Great job!');
+            
+            // Advance to next day if not last day
+            if (!wasComplete && state.currentDay < 5) {
+                state.currentDay++;
+                render();
+            } else {
+                render();
+            }
         }
 
         // History
