@@ -716,12 +716,28 @@
             const repsInput = row.querySelector('.reps-input');
             const rawWeight = kgInput?.value?.trim() || '';
             const rawReps = repsInput?.value?.trim() || '';
-            const phWeight = kgInput?.placeholder || '';
-            const phReps = repsInput?.placeholder || '';
-            const weight = rawWeight !== '' ? (parseFloat(rawWeight) || 0)
-                         : (parseFloat(phWeight) || 0);
-            const reps = rawReps !== '' ? rawReps
-                       : (/\d/.test(phReps) ? phReps : '');
+
+            // Compute ghost fallback from state (previous completed set or last workout)
+            let ghostWeight = 0, ghostReps = '';
+            if (rawWeight === '' || rawReps === '') {
+                const st = appState.value;
+                const dayLogs = st.exerciseLogs[st.currentCycle]?.[st.currentWeek]?.[st.currentDay]?.[exerciseName] || [];
+                for (let i = setNum - 2; i >= 0; i--) {
+                    const prev = dayLogs[i];
+                    if (prev && (prev.weight > 0 || prev.reps || prev.done)) {
+                        ghostWeight = prev.weight || 0;
+                        ghostReps = prev.reps || '';
+                        break;
+                    }
+                }
+                if (ghostWeight === 0 && ghostReps === '') {
+                    const last = getLastWorkoutData(exerciseName);
+                    if (last) { ghostWeight = last.weight || 0; ghostReps = last.reps || ''; }
+                }
+            }
+
+            const weight = rawWeight !== '' ? (parseFloat(rawWeight) || 0) : ghostWeight;
+            const reps = rawReps !== '' ? rawReps : ghostReps;
 
             mutateState(st => {
                 const dayLogs = getExerciseLogs(st, true);
@@ -951,10 +967,10 @@
                     <td class="prev-val">${prevDisplay}</td>
                     <td><input type="number" class="kg-input" value=${weight}
                         onChange=${(e) => updateWeight(exerciseName, set, e.target.value)}
-                        placeholder=${ghostWeight || ex.targetWeight || '--'} step="1" min="0" /></td>
+                        placeholder=${ghostWeight || '--'} step="1" min="0" /></td>
                     <td><input type="text" class="reps-input" value=${reps}
                         onChange=${(e) => updateReps(exerciseName, set, e.target.value)}
-                        placeholder=${ghostReps || 'Reps'} /></td>
+                        placeholder=${ghostReps || '--'} /></td>
                     <td>${isExtra ? html`<button class="remove-set-btn" onClick=${() => removeSet(exerciseName, set)}>✕</button>` : ''}</td>
                     <td class="check-col">
                         <div class="check-btn ${done ? 'checked' : ''}"
