@@ -504,42 +504,19 @@
     </style>
 </head>
 <body>
-    <!-- Header -->
-    <div class="header">
-        <span class="header-title">Claw Gains</span>
-        <button class="finish-btn" onclick="finishWorkout()">Finish</button>
-    </div>
-    
-    <!-- Timer Bar -->
-    <div class="timer-bar">
-        <span class="timer-display" id="restTimer">0:00</span>
-        <button class="timer-btn" onclick="startRest(60)">60s</button>
-        <button class="timer-btn" onclick="startRest(90)">90s</button>
-        <button class="timer-btn" onclick="startRest(120)">2m</button>
-        <button class="timer-btn" onclick="stopRest()">Stop</button>
-    </div>
-    
-    <!-- Main View -->
-    <div id="mainView">
-        <!-- Week Toggle -->
-        <div class="week-toggle">
-            <button class="week-btn week-a" id="weekABtn" onclick="setWeek('A')">Week A</button>
-            <button class="week-btn week-b" id="weekBBtn" onclick="setWeek('B')">Week B</button>
-        </div>
-        
-        <!-- Day Navigation -->
-        <div class="day-nav" id="dayNav"></div>
-        
-        <!-- Workout Content -->
-        <div id="workoutContent"></div>
-    </div>
-    
-    <script>
-        // Program Data - loaded from program.json
-        let programData = null;
+    <div id="app"></div>
 
-        // State
-        let state = {
+    <script type="module">
+        import { h, render } from 'https://esm.sh/preact@10.25.4';
+        import { useState, useEffect, useRef, useCallback, useMemo } from 'https://esm.sh/preact@10.25.4/hooks';
+        import { signal, computed } from 'https://esm.sh/@preact/signals@1.3.1?deps=preact@10.25.4';
+        import htm from 'https://esm.sh/htm@3.1.1';
+
+        const html = htm.bind(h);
+
+        // ── Signals ──────────────────────────────────────────────────
+
+        const defaultState = {
             currentCycle: 1,
             currentDay: 1,
             currentWeek: 'A',
@@ -549,32 +526,31 @@
             exerciseNotes: {}
         };
 
-        // Initialize
-        async function init() {
-            const resp = await fetch('/program.json');
-            programData = await resp.json();
-            loadState();
-            renderWeekButtons();
-            render();
-        }
-
-        // Persistence
         function loadState() {
             const saved = localStorage.getItem('clawgains_state');
-            if (saved) {
-                const parsed = JSON.parse(saved);
-                // Merge with defaults to preserve any existing data
-                state = { ...state, ...parsed };
-            }
+            if (saved) return { ...defaultState, ...JSON.parse(saved) };
+            return { ...defaultState };
         }
 
-        function saveState() {
-            clearHistoryCache();
-            localStorage.setItem('clawgains_state', JSON.stringify(state));
+        const appState = signal(loadState());
+        const timerRemaining = signal(0);
+        const programData = signal(null);
+        const historyCache = signal(null);
+
+        // ── Persistence ──────────────────────────────────────────────
+
+        function persistAndSync() {
+            historyCache.value = null;
+            localStorage.setItem('clawgains_state', JSON.stringify(appState.value));
             debouncedSync();
         }
 
-        // Server sync (fire-and-forget)
+        function mutateState(fn) {
+            fn(appState.value);
+            appState.value = { ...appState.value };
+            persistAndSync();
+        }
+
         let syncTimer = null;
         function debouncedSync() {
             clearTimeout(syncTimer);
@@ -582,8 +558,10 @@
         }
 
         function getSectionForExercise(dayNum, exerciseName) {
-            const dayData = programData[dayNum];
-            const weekKey = 'week' + state.currentWeek;
+            const pd = programData.value;
+            if (!pd) return 'unknown';
+            const dayData = pd[dayNum];
+            const weekKey = 'week' + appState.value.currentWeek;
             const sectionMap = {
                 warmup: dayData.warmup || [],
                 mainA: (dayData.mainA[weekKey] || dayData.mainA.weekA || []),
@@ -602,17 +580,17 @@
         }
 
         function syncToServer() {
-            if (!programData) return;
-            const cycle = state.currentCycle;
-            const week = state.currentWeek;
-            const day = state.currentDay;
-            const logs = state.exerciseLogs[cycle]?.[week]?.[day] || {};
-            const isDone = state.dayCompletion[cycle]?.[week]?.[day];
-            const dayNote = (state.dayNotes && state.dayNotes[cycle]?.[week]?.[day]) || null;
+            const pd = programData.value;
+            if (!pd) return;
+            const st = appState.value;
+            const { currentCycle: cycle, currentWeek: week, currentDay: day } = st;
+            const logs = st.exerciseLogs[cycle]?.[week]?.[day] || {};
+            const isDone = st.dayCompletion[cycle]?.[week]?.[day];
+            const dayNote = (st.dayNotes && st.dayNotes[cycle]?.[week]?.[day]) || null;
 
             const exercises = [];
             for (const [name, sets] of Object.entries(logs)) {
-                const exNote = (state.exerciseNotes && state.exerciseNotes[cycle]?.[week]?.[day]?.[name]) || null;
+                const exNote = (st.exerciseNotes && st.exerciseNotes[cycle]?.[week]?.[day]?.[name]) || null;
                 exercises.push({
                     name,
                     section: getSectionForExercise(day, name),
@@ -627,9 +605,7 @@
             }
 
             const payload = {
-                cycle,
-                week,
-                day,
+                cycle, week, day,
                 day_note: dayNote,
                 completed_at: isDone ? new Date().toISOString() : null,
                 exercises
@@ -639,526 +615,42 @@
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
-            }).catch(() => {}); // fire-and-forget
+            }).catch(() => {});
         }
 
-        let restInterval = null;
-        let audioContext = null;
+        // ── Audio ────────────────────────────────────────────────────
 
-        // Play beep sound when timer completes
+        let audioContext = null;
         function playTimerBeep() {
             if (!audioContext) {
                 audioContext = new (window.AudioContext || window.webkitAudioContext)();
             }
-
             const duration = 0.15;
-            const frequency = 880; // A5 note
-
-            // Play 3 short beeps
+            const frequency = 880;
             for (let i = 0; i < 3; i++) {
                 const oscillator = audioContext.createOscillator();
                 const gainNode = audioContext.createGain();
-
                 oscillator.connect(gainNode);
                 gainNode.connect(audioContext.destination);
-
                 oscillator.frequency.value = frequency;
                 oscillator.type = 'sine';
-
                 const startTime = audioContext.currentTime + (i * 0.25);
                 gainNode.gain.setValueAtTime(0.3, startTime);
                 gainNode.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
-
                 oscillator.start(startTime);
                 oscillator.stop(startTime + duration);
             }
-
-            // Vibrate if supported
             if (navigator.vibrate) {
                 navigator.vibrate([200, 100, 200, 100, 200]);
             }
         }
 
-        // Rest Timer
-        function startRest(seconds) {
-            stopRest();
-            let remaining = seconds;
-            updateTimerDisplay(remaining);
-            restInterval = setInterval(() => {
-                remaining--;
-                if (remaining <= 0) {
-                    playTimerBeep();
-                    stopRest();
-                } else {
-                    updateTimerDisplay(remaining);
-                }
-            }, 1000);
-        }
-
-        function stopRest() {
-            if (restInterval) {
-                clearInterval(restInterval);
-                restInterval = null;
-            }
-            document.getElementById('restTimer').textContent = '0:00';
-        }
-
-        function updateTimerDisplay(seconds) {
-            const mins = Math.floor(seconds / 60);
-            const secs = seconds % 60;
-            document.getElementById('restTimer').textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
-        }
-
-        // Week Toggle
-        function setWeek(week) {
-            state.currentWeek = week;
-            renderWeekButtons();
-            saveState();
-            render();
-        }
-
-        function renderWeekButtons() {
-            document.getElementById('weekABtn').classList.toggle('active', state.currentWeek === 'A');
-            document.getElementById('weekBBtn').classList.toggle('active', state.currentWeek === 'B');
-        }
-
-        // Day Navigation
-        function selectDay(day) {
-            state.currentDay = day;
-            saveState();
-            render();
-        }
-
-        // Next Cycle
-        function nextCycle() {
-            if (state.currentCycle >= 28) {
-                alert('Maximum cycle reached!');
-                return;
-            }
-            state.currentCycle++;
-            state.currentDay = 1;
-            state.currentWeek = 'A';
-            saveState();
-            render();
-        }
-
-        // Render
-        function render() {
-            renderWeekButtons();
-            renderDayNav();
-            renderWorkout();
-        }
-
-        function getCompletedDaysInWeek() {
-            const weekData = state.dayCompletion[state.currentCycle]?.[state.currentWeek] || {};
-            return Object.values(weekData).filter(Boolean).length;
-        }
-
-        function renderDayNav() {
-            const nav = document.getElementById('dayNav');
-            const dayNames = ['Lwr Qd', 'Up Push', 'Lwr PC', 'Up Pull', 'Arms/Mob'];
-            
-            nav.innerHTML = '';
-            for (let day = 1; day <= 5; day++) {
-                const isCompleted = state.dayCompletion[state.currentCycle]?.[state.currentWeek]?.[day];
-                const isActive = state.currentDay === day;
-                
-                nav.innerHTML += `
-                    <button class="day-btn ${isActive ? 'active' : ''} ${isCompleted ? 'completed' : ''}" 
-                            onclick="selectDay(${day})">
-                        ${dayNames[day-1]}
-                    </button>
-                `;
-            }
-        }
-
-        function renderWorkout() {
-            const dayData = programData[state.currentDay];
-            const weekKey = 'week' + state.currentWeek.toLowerCase();
-            const exercises = dayData.mainA[weekKey] || dayData.mainA.weekA;
-            const logs = state.exerciseLogs[state.currentCycle]?.[state.currentWeek]?.[state.currentDay] || {};
-            const isDayComplete = state.dayCompletion[state.currentCycle]?.[state.currentWeek]?.[state.currentDay];
-
-            let html = `<h2>${dayData.name}</h2>`;
-
-            // Day note
-            const dayNoteVal = (state.dayNotes[state.currentCycle]?.[state.currentWeek]?.[state.currentDay]) || '';
-            html += `<div class="day-note-wrap">
-                <textarea class="day-note-area" placeholder="Session notes..."
-                    onchange="updateDayNote(this.value)">${dayNoteVal}</textarea>
-            </div>`;
-
-            // Warm-up
-            html += renderSection('Warm-up', dayData.warmup, logs, false);
-
-            // Main Work
-            html += renderSection('Main Work', exercises, logs, true);
-
-            // Prehab (Day 1)
-            if (dayData.prehab) {
-                const filteredPrehab = dayData.prehab.filter(ex => !ex.isWeekB || state.currentWeek === 'B');
-                if (filteredPrehab.length > 0) {
-                    html += renderSection('Prehab', filteredPrehab, logs, true);
-                }
-            }
-
-            // Accessories
-            if (dayData.accessories) {
-                const filteredAccessories = dayData.accessories.filter(ex => !ex.isWeekB || state.currentWeek === 'B');
-                if (filteredAccessories.length > 0) {
-                    html += renderSection('Accessories', filteredAccessories, logs, true);
-                }
-            }
-
-            // Shoulder Health
-            if (dayData.shoulderHealth) {
-                const filteredShoulderHealth = dayData.shoulderHealth.filter(ex => !ex.isWeekB || state.currentWeek === 'B');
-                if (filteredShoulderHealth.length > 0) {
-                    html += renderSection('Shoulder Health', filteredShoulderHealth, logs, true);
-                }
-            }
-
-            // Calf/Tibialis (Day 3)
-            if (dayData.calfTibialis) {
-                const filteredCalfTibialis = dayData.calfTibialis.filter(ex => !ex.isWeekB || state.currentWeek === 'B');
-                if (filteredCalfTibialis.length > 0) {
-                    html += renderSection('Calf/Tibialis', filteredCalfTibialis, logs, true);
-                }
-            }
-
-            // Neck (Day 5)
-            if (dayData.neck) {
-                const filteredNeck = dayData.neck.filter(ex => !ex.isWeekB || state.currentWeek === 'B');
-                if (filteredNeck.length > 0) {
-                    html += renderSection('Neck', filteredNeck, logs, true);
-                }
-            }
-
-            // Flexibility (Day 5)
-            if (dayData.flexibility) {
-                const filteredFlexibility = dayData.flexibility.filter(ex => !ex.isWeekB || state.currentWeek === 'B');
-                if (filteredFlexibility.length > 0) {
-                    html += renderSection('Flexibility', filteredFlexibility, logs, true);
-                }
-            }
-
-            // Extra
-            const filteredExtra = dayData.extra.filter(ex => !ex.isWeekB || state.currentWeek === 'B');
-            if (filteredExtra.length > 0) {
-                html += renderSection('Extra Time', filteredExtra, logs, true);
-            }
-
-            // Next Cycle Banner (when week complete)
-            const completedDays = getCompletedDaysInWeek();
-            if (completedDays === 5) {
-                html += `
-                    <div style="margin: 16px; padding: 16px; background: linear-gradient(135deg, var(--accent), #5856d6); border-radius: 12px; text-align: center; color: white;">
-                        <h3 style="margin-bottom: 8px;">Week Complete!</h3>
-                        <p style="font-size: 0.85rem; opacity: 0.9; margin-bottom: 8px;">Ready to start the next cycle?</p>
-                        <button onclick="nextCycle()" style="background: white; color: var(--accent); border: none; padding: 8px 24px; border-radius: 20px; font-size: 0.85rem; font-weight: 600; cursor: pointer;">Next Cycle</button>
-                    </div>
-                `;
-            }
-
-            // History
-            html += renderHistory();
-
-            document.getElementById('workoutContent').innerHTML = html;
-        }
-
-        function renderSection(title, exercises, logs, showWeight) {
-            if (!exercises || exercises.length === 0) return '';
-            
-            let html = `
-                <div class="group-card">
-                    <div class="group-header">
-                        <h3>${title}</h3>
-                    </div>
-            `;
-
-            exercises.forEach((ex, idx) => {
-                // Ensure logs[ex.name] exists as a reference to state, not a new local array
-                if (!logs[ex.name]) logs[ex.name] = [];
-                const exLogs = logs[ex.name];
-                const lastWeight = getLastWeight(ex.name);
-                const lastData = getLastWorkoutData(ex.name);
-                const actualSets = Math.max(ex.sets, exLogs.length);
-                const note = ex.note ? `${ex.reps} · ${ex.note}` : ex.reps;
-
-                const escapedNameAttr = ex.name.replace(/"/g, '&quot;');
-                const exNoteVal = (state.exerciseNotes[state.currentCycle]?.[state.currentWeek]?.[state.currentDay]?.[ex.name]) || '';
-
-                html += `<div class="exercise-row">
-                    <div class="exercise-info">
-                        <div class="exercise-info-left">
-                            <span class="exercise-name">${ex.name}</span>
-                            <span class="exercise-note">${note}</span>
-                            <input type="text" class="exercise-note-input" placeholder="Add note..."
-                                value="${exNoteVal.replace(/"/g, '&quot;')}"
-                                onchange="updateExerciseNote('${ex.name.replace(/'/g, "\\'")}', this.value)">
-                        </div>
-                        <span class="exercise-target">${ex.sets}×</span>
-                    </div>`;
-
-                html += `<table class="sets-table"><thead><tr>
-                    <th class="set-col">#</th>
-                    <th class="prev-col">Prev</th>
-                    <th class="kg-col">kg</th>
-                    <th class="reps-col">Reps</th>
-                    <th class="remove-col"></th>
-                    <th class="check-col"></th>
-                </tr></thead><tbody>`;
-
-                // Find best ghost data: prefer earlier set in current session, fall back to last session
-                function getGhostForSet(setIndex) {
-                    // Check earlier sets in current session for real data
-                    for (let i = setIndex - 1; i >= 0; i--) {
-                        const prev = exLogs[i];
-                        if (prev && (prev.weight > 0 || prev.reps || prev.done)) {
-                            return { weight: prev.weight || '', reps: prev.reps || '' };
-                        }
-                    }
-                    // Fall back to last session data
-                    return lastData ? { weight: lastData.weight || '', reps: lastData.reps || '' } : null;
-                }
-
-                for (let set = 1; set <= actualSets; set++) {
-                    const logData = exLogs[set - 1];
-                    const hasRealData = logData?.weight > 0 || logData?.reps || logData?.done;
-                    const isExtra = set > ex.sets;
-
-                    let weight, reps, done, ghostWeight, ghostReps;
-                    const ghost = getGhostForSet(set - 1);
-                    if (hasRealData) {
-                        weight = logData.weight || '';
-                        reps = logData.reps || '';
-                        done = logData.done || false;
-                        ghostWeight = '';
-                        ghostReps = '';
-                    } else {
-                        weight = '';
-                        reps = '';
-                        done = false;
-                        ghostWeight = ghost ? ghost.weight : '';
-                        ghostReps = ghost ? ghost.reps : '';
-                    }
-
-                    // Get previous workout data
-                    const prevLog = getPreviousWorkout(ex.name);
-                    const prevDisplay = prevLog ? `${prevLog.weight}×${prevLog.reps}` : '';
-
-                    const escapedName = ex.name.replace(/'/g, "\\'");
-                    html += `<tr>
-                        <td class="set-num">${set}${isExtra ? '*' : ''}</td>
-                        <td class="prev-val">${prevDisplay}</td>
-                        <td><input type="number" class="kg-input" value="${weight}"
-                            onchange="updateWeight('${escapedName}', ${set}, this.value)"
-                            placeholder="${ghostWeight || ex.targetWeight || '--'}" step="1" min="0"></td>
-                        <td><input type="text" class="reps-input" value="${reps}"
-                            onchange="updateReps('${escapedName}', ${set}, this.value)"
-                            placeholder="${ghostReps || 'Reps'}"></td>
-                        <td>${isExtra ? `<button class="remove-set-btn" onclick="removeSet('${escapedName}', ${set})">✕</button>` : ''}</td>
-                        <td>
-                            <div class="check-btn ${done ? 'checked' : ''}" onclick="toggleSet('${escapedName}', ${set})">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
-                            </div>
-                        </td>
-                    </tr>`;
-                }
-
-                html += `</tbody></table>
-                    <button class="add-set-btn" onclick="addSet('${ex.name}')">+ Add Set</button>
-                </div>`;
-            });
-
-            html += `</div>`;
-            return html;
-        }
-
-        function renderHistory() {
-            const history = getAllHistory();
-            if (Object.keys(history).length === 0) return '';
-
-            let html = '<div class="history-section"><h2>Recent Progress</h2>';
-            
-            Object.entries(history).slice(0, 5).forEach(([name, logs]) => {
-                const lastLog = logs[logs.length - 1];
-                html += `
-                    <div class="history-item">
-                        <span class="history-date">${name}</span>
-                        <span>${lastLog.weight}kg × ${lastLog.reps} · C${lastLog.cycle}W${lastLog.week}</span>
-                    </div>
-                `;
-            });
-
-            html += '</div>';
-            return html;
-        }
-
-        // Helper to get or initialize exercise logs
-        function getExerciseLogs(ensureExists = false) {
-            if (!state.exerciseLogs[state.currentCycle]) {
-                if (!ensureExists) return null;
-                state.exerciseLogs[state.currentCycle] = {};
-            }
-            if (!state.exerciseLogs[state.currentCycle][state.currentWeek]) {
-                if (!ensureExists) return null;
-                state.exerciseLogs[state.currentCycle][state.currentWeek] = {};
-            }
-            if (!state.exerciseLogs[state.currentCycle][state.currentWeek][state.currentDay]) {
-                if (!ensureExists) return null;
-                state.exerciseLogs[state.currentCycle][state.currentWeek][state.currentDay] = {};
-            }
-            return state.exerciseLogs[state.currentCycle][state.currentWeek][state.currentDay];
-        }
-
-        // Actions
-        function toggleSet(exerciseName, setNum) {
-            const row = event.target.closest('tr');
-            const kgInput = row.querySelector('.kg-input');
-            const repsInput = row.querySelector('.reps-input');
-
-            // Read actual value; if empty, use placeholder (ghost value) as the committed value
-            const weight = parseFloat(kgInput?.value || kgInput?.placeholder) || 0;
-            const reps = repsInput?.value || repsInput?.placeholder || '';
-
-            const dayLogs = getExerciseLogs(true);
-            if (!dayLogs[exerciseName]) dayLogs[exerciseName] = [];
-            while (dayLogs[exerciseName].length < setNum) {
-                dayLogs[exerciseName].push({ weight: 0, reps: '', done: false });
-            }
-
-            const log = dayLogs[exerciseName][setNum - 1];
-            if (log.done) {
-                log.done = false;
-            } else {
-                Object.assign(log, { weight, reps, done: true, cycle: state.currentCycle, week: state.currentWeek });
-            }
-
-            saveState();
-            render();
-        }
-
-        function updateWeight(exerciseName, setNum, value) {
-            const dayLogs = getExerciseLogs(true);
-            if (!dayLogs[exerciseName]) dayLogs[exerciseName] = [];
-            while (dayLogs[exerciseName].length < setNum) {
-                dayLogs[exerciseName].push({ weight: 0, reps: '', done: false });
-            }
-            dayLogs[exerciseName][setNum - 1].weight = parseFloat(value) || 0;
-            saveState();
-            render();
-        }
-
-        function updateReps(exerciseName, setNum, value) {
-            const dayLogs = getExerciseLogs(true);
-            if (!dayLogs[exerciseName]) dayLogs[exerciseName] = [];
-            while (dayLogs[exerciseName].length < setNum) {
-                dayLogs[exerciseName].push({ weight: 0, reps: '', done: false });
-            }
-            dayLogs[exerciseName][setNum - 1].reps = value;
-            saveState();
-            render();
-        }
-
-        function updateDayNote(value) {
-            const c = state.currentCycle, w = state.currentWeek, d = state.currentDay;
-            if (!state.dayNotes[c]) state.dayNotes[c] = {};
-            if (!state.dayNotes[c][w]) state.dayNotes[c][w] = {};
-            state.dayNotes[c][w][d] = value;
-            saveState();
-        }
-
-        function updateExerciseNote(exerciseName, value) {
-            const c = state.currentCycle, w = state.currentWeek, d = state.currentDay;
-            if (!state.exerciseNotes[c]) state.exerciseNotes[c] = {};
-            if (!state.exerciseNotes[c][w]) state.exerciseNotes[c][w] = {};
-            if (!state.exerciseNotes[c][w][d]) state.exerciseNotes[c][w][d] = {};
-            state.exerciseNotes[c][w][d][exerciseName] = value;
-            saveState();
-        }
-
-        function addSet(exerciseName) {
-            const dayLogs = getExerciseLogs(true);
-            if (!dayLogs[exerciseName]) dayLogs[exerciseName] = [];
-            dayLogs[exerciseName].push({ weight: 0, reps: '', done: false });
-            saveState();
-            render();
-        }
-
-        function removeSet(exerciseName, setNum) {
-            const dayLogs = getExerciseLogs();
-            if (dayLogs?.[exerciseName]?.[setNum - 1]) {
-                dayLogs[exerciseName].splice(setNum - 1, 1);
-                saveState();
-                render();
-            }
-        }
-
-        function toggleDayComplete() {
-            if (!state.dayCompletion[state.currentCycle]) state.dayCompletion[state.currentCycle] = {};
-            if (!state.dayCompletion[state.currentCycle][state.currentWeek]) state.dayCompletion[state.currentCycle][state.currentWeek] = {};
-            
-            const key = state.currentDay;
-            state.dayCompletion[state.currentCycle][state.currentWeek][key] = !state.dayCompletion[state.currentCycle][state.currentWeek][key];
-            
-            if (state.dayCompletion[state.currentCycle][state.currentWeek][key] && state.currentDay < 5) {
-                state.currentDay++;
-            }
-            
-            saveState();
-            render();
-        }
-
-        function finishWorkout() {
-            // Mark day as complete
-            if (!state.dayCompletion[state.currentCycle]) state.dayCompletion[state.currentCycle] = {};
-            if (!state.dayCompletion[state.currentCycle][state.currentWeek]) state.dayCompletion[state.currentCycle][state.currentWeek] = {};
-            
-            const key = state.currentDay;
-            const wasComplete = state.dayCompletion[state.currentCycle][state.currentWeek][key];
-            state.dayCompletion[state.currentCycle][state.currentWeek][key] = true;
-            
-            saveState();
-            
-            // Show feedback
-            alert('Workout saved! Great job!');
-            
-            // Advance to next day if not last day
-            if (!wasComplete && state.currentDay < 5) {
-                state.currentDay++;
-                render();
-            } else {
-                render();
-            }
-        }
-
-        // History
-        function getLastWeight(exerciseName) {
-            const history = getAllHistory();
-            if (history[exerciseName] && history[exerciseName].length > 0) {
-                return history[exerciseName][history[exerciseName].length - 1].weight;
-            }
-            return null;
-        }
-
-        function getLastWorkoutData(exerciseName) {
-            const history = getAllHistory();
-            if (history[exerciseName] && history[exerciseName].length > 0) {
-                const last = history[exerciseName][history[exerciseName].length - 1];
-                return { weight: last.weight, reps: last.reps };
-            }
-            return null;
-        }
-
-        let historyCache = null;
+        // ── History helpers ──────────────────────────────────────────
 
         function getAllHistory() {
-            if (historyCache) return historyCache;
-            
+            if (historyCache.value) return historyCache.value;
             const history = {};
-            const logs = state.exerciseLogs || {};
-            
+            const logs = appState.value.exerciseLogs || {};
             for (const [cycle, cycleData] of Object.entries(logs)) {
                 for (const [week, weekData] of Object.entries(cycleData)) {
                     for (const [day, dayData] of Object.entries(weekData)) {
@@ -1178,9 +670,17 @@
                     }
                 }
             }
-            
-            historyCache = history;
+            historyCache.value = history;
             return history;
+        }
+
+        function getLastWorkoutData(exerciseName) {
+            const history = getAllHistory();
+            if (history[exerciseName] && history[exerciseName].length > 0) {
+                const last = history[exerciseName][history[exerciseName].length - 1];
+                return { weight: last.weight, reps: last.reps };
+            }
+            return null;
         }
 
         function getPreviousWorkout(exerciseName) {
@@ -1190,11 +690,450 @@
             return null;
         }
 
-        function clearHistoryCache() {
-            historyCache = null;
+        // ── State helpers ────────────────────────────────────────────
+
+        function getExerciseLogs(st, ensureExists = false) {
+            if (!st.exerciseLogs[st.currentCycle]) {
+                if (!ensureExists) return null;
+                st.exerciseLogs[st.currentCycle] = {};
+            }
+            if (!st.exerciseLogs[st.currentCycle][st.currentWeek]) {
+                if (!ensureExists) return null;
+                st.exerciseLogs[st.currentCycle][st.currentWeek] = {};
+            }
+            if (!st.exerciseLogs[st.currentCycle][st.currentWeek][st.currentDay]) {
+                if (!ensureExists) return null;
+                st.exerciseLogs[st.currentCycle][st.currentWeek][st.currentDay] = {};
+            }
+            return st.exerciseLogs[st.currentCycle][st.currentWeek][st.currentDay];
         }
 
-        // Initialize app
+        // ── Actions ──────────────────────────────────────────────────
+
+        function toggleSet(exerciseName, setNum, event) {
+            const row = event.target.closest('tr');
+            const kgInput = row.querySelector('.kg-input');
+            const repsInput = row.querySelector('.reps-input');
+            const rawWeight = kgInput?.value?.trim() || '';
+            const rawReps = repsInput?.value?.trim() || '';
+            const phWeight = kgInput?.placeholder || '';
+            const phReps = repsInput?.placeholder || '';
+            const weight = rawWeight !== '' ? (parseFloat(rawWeight) || 0)
+                         : (parseFloat(phWeight) || 0);
+            const reps = rawReps !== '' ? rawReps
+                       : (/\d/.test(phReps) ? phReps : '');
+
+            mutateState(st => {
+                const dayLogs = getExerciseLogs(st, true);
+                if (!dayLogs[exerciseName]) dayLogs[exerciseName] = [];
+                while (dayLogs[exerciseName].length < setNum) {
+                    dayLogs[exerciseName].push({ weight: 0, reps: '', done: false });
+                }
+                const log = dayLogs[exerciseName][setNum - 1];
+                if (log.done) {
+                    log.done = false;
+                } else {
+                    Object.assign(log, { weight, reps, done: true, cycle: st.currentCycle, week: st.currentWeek });
+                }
+            });
+        }
+
+        function updateWeight(exerciseName, setNum, value) {
+            mutateState(st => {
+                const dayLogs = getExerciseLogs(st, true);
+                if (!dayLogs[exerciseName]) dayLogs[exerciseName] = [];
+                while (dayLogs[exerciseName].length < setNum) {
+                    dayLogs[exerciseName].push({ weight: 0, reps: '', done: false });
+                }
+                dayLogs[exerciseName][setNum - 1].weight = parseFloat(value) || 0;
+            });
+        }
+
+        function updateReps(exerciseName, setNum, value) {
+            mutateState(st => {
+                const dayLogs = getExerciseLogs(st, true);
+                if (!dayLogs[exerciseName]) dayLogs[exerciseName] = [];
+                while (dayLogs[exerciseName].length < setNum) {
+                    dayLogs[exerciseName].push({ weight: 0, reps: '', done: false });
+                }
+                dayLogs[exerciseName][setNum - 1].reps = value;
+            });
+        }
+
+        function updateDayNote(value) {
+            mutateState(st => {
+                const { currentCycle: c, currentWeek: w, currentDay: d } = st;
+                if (!st.dayNotes[c]) st.dayNotes[c] = {};
+                if (!st.dayNotes[c][w]) st.dayNotes[c][w] = {};
+                st.dayNotes[c][w][d] = value;
+            });
+        }
+
+        function updateExerciseNote(exerciseName, value) {
+            mutateState(st => {
+                const { currentCycle: c, currentWeek: w, currentDay: d } = st;
+                if (!st.exerciseNotes[c]) st.exerciseNotes[c] = {};
+                if (!st.exerciseNotes[c][w]) st.exerciseNotes[c][w] = {};
+                if (!st.exerciseNotes[c][w][d]) st.exerciseNotes[c][w][d] = {};
+                st.exerciseNotes[c][w][d][exerciseName] = value;
+            });
+        }
+
+        function addSet(exerciseName) {
+            mutateState(st => {
+                const dayLogs = getExerciseLogs(st, true);
+                if (!dayLogs[exerciseName]) dayLogs[exerciseName] = [];
+                dayLogs[exerciseName].push({ weight: 0, reps: '', done: false });
+            });
+        }
+
+        function removeSet(exerciseName, setNum) {
+            mutateState(st => {
+                const dayLogs = getExerciseLogs(st);
+                if (dayLogs?.[exerciseName]?.[setNum - 1]) {
+                    dayLogs[exerciseName].splice(setNum - 1, 1);
+                }
+            });
+        }
+
+        function finishWorkout() {
+            const st = appState.value;
+            const wasComplete = st.dayCompletion[st.currentCycle]?.[st.currentWeek]?.[st.currentDay];
+
+            mutateState(st => {
+                if (!st.dayCompletion[st.currentCycle]) st.dayCompletion[st.currentCycle] = {};
+                if (!st.dayCompletion[st.currentCycle][st.currentWeek]) st.dayCompletion[st.currentCycle][st.currentWeek] = {};
+                st.dayCompletion[st.currentCycle][st.currentWeek][st.currentDay] = true;
+                if (!wasComplete && st.currentDay < 5) {
+                    st.currentDay++;
+                }
+            });
+
+            alert('Workout saved! Great job!');
+        }
+
+        function nextCycle() {
+            if (appState.value.currentCycle >= 28) {
+                alert('Maximum cycle reached!');
+                return;
+            }
+            mutateState(st => {
+                st.currentCycle++;
+                st.currentDay = 1;
+                st.currentWeek = 'A';
+            });
+        }
+
+        // ── Components ───────────────────────────────────────────────
+
+        function Header() {
+            return html`
+                <div class="header">
+                    <span class="header-title">Claw Gains</span>
+                    <button class="finish-btn" onClick=${finishWorkout}>Finish</button>
+                </div>
+            `;
+        }
+
+        function TimerBar() {
+            const intervalRef = useRef(null);
+
+            const startRest = useCallback((seconds) => {
+                stopRest();
+                timerRemaining.value = seconds;
+                intervalRef.current = setInterval(() => {
+                    timerRemaining.value--;
+                    if (timerRemaining.value <= 0) {
+                        playTimerBeep();
+                        stopRest();
+                    }
+                }, 1000);
+            }, []);
+
+            const stopRest = useCallback(() => {
+                if (intervalRef.current) {
+                    clearInterval(intervalRef.current);
+                    intervalRef.current = null;
+                }
+                timerRemaining.value = 0;
+            }, []);
+
+            useEffect(() => () => { if (intervalRef.current) clearInterval(intervalRef.current); }, []);
+
+            const remaining = timerRemaining.value;
+            const mins = Math.floor(remaining / 60);
+            const secs = remaining % 60;
+            const display = `${mins}:${secs.toString().padStart(2, '0')}`;
+
+            return html`
+                <div class="timer-bar">
+                    <span class="timer-display">${display}</span>
+                    <button class="timer-btn" onClick=${() => startRest(60)}>60s</button>
+                    <button class="timer-btn" onClick=${() => startRest(90)}>90s</button>
+                    <button class="timer-btn" onClick=${() => startRest(120)}>2m</button>
+                    <button class="timer-btn" onClick=${stopRest}>Stop</button>
+                </div>
+            `;
+        }
+
+        function WeekToggle() {
+            const st = appState.value;
+            const setWeek = (week) => mutateState(s => { s.currentWeek = week; });
+
+            return html`
+                <div class="week-toggle">
+                    <button class="week-btn week-a ${st.currentWeek === 'A' ? 'active' : ''}"
+                            onClick=${() => setWeek('A')}>Week A</button>
+                    <button class="week-btn week-b ${st.currentWeek === 'B' ? 'active' : ''}"
+                            onClick=${() => setWeek('B')}>Week B</button>
+                </div>
+            `;
+        }
+
+        function DayNav() {
+            const st = appState.value;
+            const dayNames = ['Lwr Qd', 'Up Push', 'Lwr PC', 'Up Pull', 'Arms/Mob'];
+
+            return html`
+                <div class="day-nav">
+                    ${dayNames.map((name, i) => {
+                        const day = i + 1;
+                        const isCompleted = st.dayCompletion[st.currentCycle]?.[st.currentWeek]?.[day];
+                        const isActive = st.currentDay === day;
+                        return html`
+                            <button class="day-btn ${isActive ? 'active' : ''} ${isCompleted ? 'completed' : ''}"
+                                    onClick=${() => mutateState(s => { s.currentDay = day; })}
+                                    key=${day}>
+                                ${name}
+                            </button>
+                        `;
+                    })}
+                </div>
+            `;
+        }
+
+        function SetRow({ exerciseName, set, isExtra, exLogs, lastData, ex }) {
+            const logData = exLogs[set - 1];
+            const hasRealData = logData?.weight > 0 || logData?.reps || logData?.done;
+
+            function getGhostForSet(setIndex) {
+                for (let i = setIndex - 1; i >= 0; i--) {
+                    const prev = exLogs[i];
+                    if (prev && (prev.weight > 0 || prev.reps || prev.done)) {
+                        return { weight: prev.weight || '', reps: prev.reps || '' };
+                    }
+                }
+                return lastData ? { weight: lastData.weight || '', reps: lastData.reps || '' } : null;
+            }
+
+            const ghost = getGhostForSet(set - 1);
+            let weight, reps, done, ghostWeight, ghostReps;
+            if (hasRealData) {
+                weight = logData.weight || '';
+                reps = logData.reps || '';
+                done = logData.done || false;
+                ghostWeight = '';
+                ghostReps = '';
+            } else {
+                weight = '';
+                reps = '';
+                done = false;
+                ghostWeight = ghost ? ghost.weight : '';
+                ghostReps = ghost ? ghost.reps : '';
+            }
+
+            const prevLog = getPreviousWorkout(exerciseName);
+            const prevDisplay = prevLog ? `${prevLog.weight}×${prevLog.reps}` : '';
+
+            return html`
+                <tr>
+                    <td class="set-num">${set}${isExtra ? '*' : ''}</td>
+                    <td class="prev-val">${prevDisplay}</td>
+                    <td><input type="number" class="kg-input" value=${weight}
+                        onChange=${(e) => updateWeight(exerciseName, set, e.target.value)}
+                        placeholder=${ghostWeight || ex.targetWeight || '--'} step="1" min="0" /></td>
+                    <td><input type="text" class="reps-input" value=${reps}
+                        onChange=${(e) => updateReps(exerciseName, set, e.target.value)}
+                        placeholder=${ghostReps || 'Reps'} /></td>
+                    <td>${isExtra ? html`<button class="remove-set-btn" onClick=${() => removeSet(exerciseName, set)}>✕</button>` : ''}</td>
+                    <td class="check-col">
+                        <div class="check-btn ${done ? 'checked' : ''}"
+                             onClick=${(e) => toggleSet(exerciseName, set, e)}>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }
+
+        function ExerciseRow({ ex, logs }) {
+            const st = appState.value;
+            if (!logs[ex.name]) logs[ex.name] = [];
+            const exLogs = logs[ex.name];
+            const lastData = getLastWorkoutData(ex.name);
+            const actualSets = Math.max(ex.sets, exLogs.length);
+            const note = ex.note ? `${ex.reps} · ${ex.note}` : ex.reps;
+            const exNoteVal = (st.exerciseNotes[st.currentCycle]?.[st.currentWeek]?.[st.currentDay]?.[ex.name]) || '';
+
+            const sets = [];
+            for (let s = 1; s <= actualSets; s++) {
+                sets.push(s);
+            }
+
+            return html`
+                <div class="exercise-row">
+                    <div class="exercise-info">
+                        <div class="exercise-info-left">
+                            <span class="exercise-name">${ex.name}</span>
+                            <span class="exercise-note">${note}</span>
+                            <input type="text" class="exercise-note-input" placeholder="Add note..."
+                                value=${exNoteVal}
+                                onChange=${(e) => updateExerciseNote(ex.name, e.target.value)} />
+                        </div>
+                        <span class="exercise-target">${ex.sets}×</span>
+                    </div>
+                    <table class="sets-table">
+                        <thead><tr>
+                            <th class="set-col">#</th>
+                            <th class="prev-col">Prev</th>
+                            <th class="kg-col">kg</th>
+                            <th class="reps-col">Reps</th>
+                            <th class="remove-col"></th>
+                            <th class="check-col"></th>
+                        </tr></thead>
+                        <tbody>
+                            ${sets.map(s => html`
+                                <${SetRow}
+                                    key=${`${ex.name}-${s}`}
+                                    exerciseName=${ex.name}
+                                    set=${s}
+                                    isExtra=${s > ex.sets}
+                                    exLogs=${exLogs}
+                                    lastData=${lastData}
+                                    ex=${ex}
+                                />
+                            `)}
+                        </tbody>
+                    </table>
+                    <button class="add-set-btn" onClick=${() => addSet(ex.name)}>+ Add Set</button>
+                </div>
+            `;
+        }
+
+        function ExerciseSection({ title, exercises, logs }) {
+            if (!exercises || exercises.length === 0) return null;
+            return html`
+                <div class="group-card">
+                    <div class="group-header">
+                        <h3>${title}</h3>
+                    </div>
+                    ${exercises.map(ex => html`
+                        <${ExerciseRow} key=${ex.name} ex=${ex} logs=${logs} />
+                    `)}
+                </div>
+            `;
+        }
+
+        function History() {
+            const history = getAllHistory();
+            const entries = Object.entries(history);
+            if (entries.length === 0) return null;
+
+            return html`
+                <div class="history-section">
+                    <h2>Recent Progress</h2>
+                    ${entries.slice(0, 5).map(([name, logs]) => {
+                        const lastLog = logs[logs.length - 1];
+                        return html`
+                            <div class="history-item" key=${name}>
+                                <span class="history-date">${name}</span>
+                                <span>${lastLog.weight}kg × ${lastLog.reps} · C${lastLog.cycle}W${lastLog.week}</span>
+                            </div>
+                        `;
+                    })}
+                </div>
+            `;
+        }
+
+        function WeekCompleteBanner() {
+            return html`
+                <div style="margin: 16px; padding: 16px; background: linear-gradient(135deg, var(--accent), #5856d6); border-radius: 12px; text-align: center; color: white;">
+                    <h3 style="margin-bottom: 8px;">Week Complete!</h3>
+                    <p style="font-size: 0.85rem; opacity: 0.9; margin-bottom: 8px;">Ready to start the next cycle?</p>
+                    <button onClick=${nextCycle} style="background: white; color: var(--accent); border: none; padding: 8px 24px; border-radius: 20px; font-size: 0.85rem; font-weight: 600; cursor: pointer;">Next Cycle</button>
+                </div>
+            `;
+        }
+
+        function DayNote() {
+            const st = appState.value;
+            const dayNoteVal = (st.dayNotes[st.currentCycle]?.[st.currentWeek]?.[st.currentDay]) || '';
+
+            return html`
+                <div class="day-note-wrap">
+                    <textarea class="day-note-area" placeholder="Session notes..."
+                        value=${dayNoteVal}
+                        onChange=${(e) => updateDayNote(e.target.value)}></textarea>
+                </div>
+            `;
+        }
+
+        function WorkoutContent() {
+            const pd = programData.value;
+            if (!pd) return null;
+
+            const st = appState.value;
+            const dayData = pd[st.currentDay];
+            const weekKey = 'week' + st.currentWeek.toLowerCase();
+            const exercises = dayData.mainA[weekKey] || dayData.mainA.weekA;
+            const logs = st.exerciseLogs[st.currentCycle]?.[st.currentWeek]?.[st.currentDay] || {};
+
+            const filterWeekB = (arr) => arr ? arr.filter(ex => !ex.isWeekB || st.currentWeek === 'B') : [];
+
+            const completedDays = (() => {
+                const weekData = st.dayCompletion[st.currentCycle]?.[st.currentWeek] || {};
+                return Object.values(weekData).filter(Boolean).length;
+            })();
+
+            return html`
+                <div id="workoutContent">
+                    <h2>${dayData.name}</h2>
+                    <${DayNote} />
+                    <${ExerciseSection} title="Warm-up" exercises=${dayData.warmup} logs=${logs} />
+                    <${ExerciseSection} title="Main Work" exercises=${exercises} logs=${logs} />
+                    ${dayData.prehab ? html`<${ExerciseSection} title="Prehab" exercises=${filterWeekB(dayData.prehab)} logs=${logs} />` : null}
+                    ${dayData.accessories ? html`<${ExerciseSection} title="Accessories" exercises=${filterWeekB(dayData.accessories)} logs=${logs} />` : null}
+                    ${dayData.shoulderHealth ? html`<${ExerciseSection} title="Shoulder Health" exercises=${filterWeekB(dayData.shoulderHealth)} logs=${logs} />` : null}
+                    ${dayData.calfTibialis ? html`<${ExerciseSection} title="Calf/Tibialis" exercises=${filterWeekB(dayData.calfTibialis)} logs=${logs} />` : null}
+                    ${dayData.neck ? html`<${ExerciseSection} title="Neck" exercises=${filterWeekB(dayData.neck)} logs=${logs} />` : null}
+                    ${dayData.flexibility ? html`<${ExerciseSection} title="Flexibility" exercises=${filterWeekB(dayData.flexibility)} logs=${logs} />` : null}
+                    <${ExerciseSection} title="Extra Time" exercises=${filterWeekB(dayData.extra)} logs=${logs} />
+                    ${completedDays === 5 ? html`<${WeekCompleteBanner} />` : null}
+                    <${History} />
+                </div>
+            `;
+        }
+
+        function App() {
+            return html`
+                <${Header} />
+                <${TimerBar} />
+                <div id="mainView">
+                    <${WeekToggle} />
+                    <${DayNav} />
+                    <${WorkoutContent} />
+                </div>
+            `;
+        }
+
+        // ── Bootstrap ────────────────────────────────────────────────
+
+        async function init() {
+            const resp = await fetch('/program.json');
+            programData.value = await resp.json();
+            render(html`<${App} />`, document.getElementById('app'));
+        }
+
         init();
     </script>
 </body>
