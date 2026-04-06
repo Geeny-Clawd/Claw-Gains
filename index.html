@@ -172,6 +172,12 @@
             background: rgba(48, 209, 88, 0.1);
             color: var(--success);
         }
+        /* Active always beats completed — position trumps status */
+        .day-btn.active.completed {
+            background: linear-gradient(135deg, var(--accent) 0%, #0066cc 100%);
+            color: white;
+            border-color: var(--accent);
+        }
 
         /* Workout Content */
         #workoutContent {
@@ -501,6 +507,7 @@
         }
         .exercise-note-input:focus { outline: none; border-bottom-color: var(--accent); }
         .exercise-note-input::placeholder { color: var(--text-muted); font-style: italic; }
+        .exercise-note-input.inherited { color: var(--text-muted); font-style: italic; }
     </style>
 </head>
 <body>
@@ -557,14 +564,33 @@
             syncTimer = setTimeout(syncToServer, 2000);
         }
 
+        function invariant(condition, message) {
+            if (!condition) throw new Error(message);
+        }
+
+        function getWeekKey(week) {
+            invariant(week === 'A' || week === 'B', `Unexpected week value: ${week}`);
+            return `week${week}`;
+        }
+
+        function getMainExercisesForWeek(dayData, week, context = 'unknown') {
+            invariant(dayData && typeof dayData === 'object', `[${context}] Missing day data`);
+            invariant(dayData.mainA && typeof dayData.mainA === 'object', `[${context}] Missing mainA block`);
+            const weekKey = getWeekKey(week);
+            const exercises = dayData.mainA[weekKey];
+            invariant(Array.isArray(exercises), `[${context}] Missing/invalid exercises for ${weekKey}`);
+            return exercises;
+        }
+
         function getSectionForExercise(dayNum, exerciseName) {
             const pd = programData.value;
-            if (!pd) return 'unknown';
+            invariant(pd && typeof pd === 'object', 'Program data not loaded');
             const dayData = pd[dayNum];
-            const weekKey = 'week' + appState.value.currentWeek;
+            invariant(dayData, `Missing day ${dayNum} in program data`);
+            const week = appState.value.currentWeek;
             const sectionMap = {
                 warmup: dayData.warmup || [],
-                mainA: (dayData.mainA[weekKey] || dayData.mainA.weekA || []),
+                mainA: getMainExercisesForWeek(dayData, week, `getSectionForExercise day=${dayNum}`),
                 prehab: dayData.prehab || [],
                 accessories: dayData.accessories || [],
                 shoulderHealth: dayData.shoulderHealth || [],
@@ -576,7 +602,7 @@
             for (const [section, exercises] of Object.entries(sectionMap)) {
                 if (exercises.some(ex => ex.name === exerciseName)) return section;
             }
-            return 'unknown';
+            throw new Error(`Exercise not found in program sections (day=${dayNum}, week=${week}): ${exerciseName}`);
         }
 
         function syncToServer() {
@@ -674,20 +700,53 @@
             return history;
         }
 
-        function getLastWorkoutData(exerciseName) {
-            const history = getAllHistory();
-            if (history[exerciseName] && history[exerciseName].length > 0) {
-                const last = history[exerciseName][history[exerciseName].length - 1];
-                return { weight: last.weight, reps: last.reps };
+        function getPreviousWorkoutSets(exerciseName) {
+            const st = appState.value;
+            const { currentCycle, currentWeek, currentDay } = st;
+            const logs = st.exerciseLogs || {};
+            let sessions = [];
+            for (const [c, cycleData] of Object.entries(logs)) {
+                for (const [w, weekData] of Object.entries(cycleData)) {
+                    for (const [d, dayData] of Object.entries(weekData)) {
+                        if (+c === currentCycle && w === currentWeek && +d === currentDay) continue;
+                        const exLogs = dayData[exerciseName];
+                        if (exLogs && exLogs.some(log => log.done && log.weight > 0)) {
+                            sessions.push({ cycle: +c, week: w, day: +d, sets: exLogs });
+                        }
+                    }
+                }
             }
-            return null;
+            if (sessions.length === 0) return null;
+            sessions.sort((a, b) => {
+                if (a.cycle !== b.cycle) return a.cycle - b.cycle;
+                if (a.week !== b.week) return a.week < b.week ? -1 : 1;
+                return a.day - b.day;
+            });
+            return sessions[sessions.length - 1].sets;
         }
 
-        function getPreviousWorkout(exerciseName) {
-            const history = getAllHistory();
-            const logs = history[exerciseName];
-            if (logs && logs.length >= 2) return logs[logs.length - 2];
-            return null;
+        function getLastExerciseNote(exerciseName) {
+            const st = appState.value;
+            const notes = st.exerciseNotes || {};
+            const { currentCycle, currentWeek, currentDay } = st;
+            let candidates = [];
+            for (const [c, cycleData] of Object.entries(notes)) {
+                for (const [w, weekData] of Object.entries(cycleData)) {
+                    for (const [d, dayData] of Object.entries(weekData)) {
+                        const note = dayData[exerciseName];
+                        if (note && note.trim()) {
+                            if (+c === currentCycle && w === currentWeek && +d === currentDay) continue;
+                            candidates.push({ cycle: +c, week: w, day: +d, note });
+                        }
+                    }
+                }
+            }
+            candidates.sort((a, b) =>
+                a.cycle !== b.cycle ? a.cycle - b.cycle :
+                a.week !== b.week ? (a.week === 'A' ? -1 : 1) :
+                a.day - b.day
+            );
+            return candidates.length > 0 ? candidates[candidates.length - 1].note : null;
         }
 
         // ── State helpers ────────────────────────────────────────────
@@ -731,8 +790,10 @@
                     }
                 }
                 if (ghostWeight === 0 && ghostReps === '') {
-                    const last = getLastWorkoutData(exerciseName);
-                    if (last) { ghostWeight = last.weight || 0; ghostReps = last.reps || ''; }
+                    const prevSets = getPreviousWorkoutSets(exerciseName);
+                    const prevSet = prevSets?.[setNum - 1];
+                    const fallback = (prevSet && prevSet.weight > 0) ? prevSet : prevSets?.find(s => s && s.weight > 0);
+                    if (fallback) { ghostWeight = fallback.weight || 0; ghostReps = fallback.reps || ''; }
                 }
             }
 
@@ -785,7 +846,11 @@
             });
         }
 
-        function updateExerciseNote(exerciseName, value) {
+        function updateExerciseNote(exerciseName, value, inheritedNote) {
+            const trimmed = value.trim();
+            const inheritedTrimmed = (inheritedNote || '').trim();
+            if (trimmed === '' && inheritedTrimmed === '') return;
+            if (trimmed === inheritedTrimmed) return;
             mutateState(st => {
                 const { currentCycle: c, currentWeek: w, currentDay: d } = st;
                 if (!st.exerciseNotes[c]) st.exerciseNotes[c] = {};
@@ -928,7 +993,7 @@
             `;
         }
 
-        function SetRow({ exerciseName, set, isExtra, exLogs, lastData, ex }) {
+        function SetRow({ exerciseName, set, isExtra, exLogs, prevSets, ex }) {
             const logData = exLogs[set - 1];
             const hasRealData = logData?.weight > 0 || logData?.reps || logData?.done;
 
@@ -939,7 +1004,13 @@
                         return { weight: prev.weight || '', reps: prev.reps || '' };
                     }
                 }
-                return lastData ? { weight: lastData.weight || '', reps: lastData.reps || '' } : null;
+                if (prevSets) {
+                    const matchingPrev = prevSets[setIndex];
+                    if (matchingPrev && matchingPrev.weight > 0) return { weight: matchingPrev.weight || '', reps: matchingPrev.reps || '' };
+                    const anyPrev = prevSets.find(s => s && s.weight > 0);
+                    if (anyPrev) return { weight: anyPrev.weight || '', reps: anyPrev.reps || '' };
+                }
+                return null;
             }
 
             const ghost = getGhostForSet(set - 1);
@@ -958,8 +1029,8 @@
                 ghostReps = ghost ? ghost.reps : '';
             }
 
-            const prevLog = getPreviousWorkout(exerciseName);
-            const prevDisplay = prevLog ? `${prevLog.weight}×${prevLog.reps}` : '';
+            const prevSetData = prevSets ? prevSets[set - 1] : null;
+            const prevDisplay = (prevSetData && prevSetData.done && prevSetData.weight > 0) ? `${prevSetData.weight}×${prevSetData.reps}` : '';
 
             return html`
                 <tr>
@@ -967,10 +1038,10 @@
                     <td class="prev-val">${prevDisplay}</td>
                     <td><input type="number" class="kg-input" value=${weight}
                         onChange=${(e) => updateWeight(exerciseName, set, e.target.value)}
-                        placeholder=${ghostWeight || '--'} step="1" min="0" /></td>
+                        placeholder=${ghostWeight || '0'} step="1" min="0" /></td>
                     <td><input type="text" class="reps-input" value=${reps}
                         onChange=${(e) => updateReps(exerciseName, set, e.target.value)}
-                        placeholder=${ghostReps || '--'} /></td>
+                        placeholder=${ghostReps || '0'} /></td>
                     <td>${isExtra ? html`<button class="remove-set-btn" onClick=${() => removeSet(exerciseName, set)}>✕</button>` : ''}</td>
                     <td class="check-col">
                         <div class="check-btn ${done ? 'checked' : ''}"
@@ -986,10 +1057,14 @@
             const st = appState.value;
             if (!logs[ex.name]) logs[ex.name] = [];
             const exLogs = logs[ex.name];
-            const lastData = getLastWorkoutData(ex.name);
+            const prevSets = getPreviousWorkoutSets(ex.name);
             const actualSets = Math.max(ex.sets, exLogs.length);
             const note = ex.note ? `${ex.reps} · ${ex.note}` : ex.reps;
-            const exNoteVal = (st.exerciseNotes[st.currentCycle]?.[st.currentWeek]?.[st.currentDay]?.[ex.name]) || '';
+            const rawNote = st.exerciseNotes[st.currentCycle]?.[st.currentWeek]?.[st.currentDay]?.[ex.name];
+            const hasOwnNote = rawNote !== undefined;
+            const exNoteVal = rawNote || '';
+            const inheritedNote = !hasOwnNote ? (getLastExerciseNote(ex.name) || '') : '';
+            const isInherited = !hasOwnNote && inheritedNote !== '';
 
             const sets = [];
             for (let s = 1; s <= actualSets; s++) {
@@ -1002,9 +1077,11 @@
                         <div class="exercise-info-left">
                             <span class="exercise-name">${ex.name}</span>
                             <span class="exercise-note">${note}</span>
-                            <input type="text" class="exercise-note-input" placeholder="Add note..."
-                                value=${exNoteVal}
-                                onChange=${(e) => updateExerciseNote(ex.name, e.target.value)} />
+                            <input type="text"
+                                class=${`exercise-note-input${isInherited ? ' inherited' : ''}`}
+                                placeholder="Add note..."
+                                value=${exNoteVal || inheritedNote}
+                                onInput=${(e) => updateExerciseNote(ex.name, e.target.value, inheritedNote)} />
                         </div>
                         <span class="exercise-target">${ex.sets}×</span>
                     </div>
@@ -1013,7 +1090,7 @@
                             <th class="set-col">#</th>
                             <th class="prev-col">Prev</th>
                             <th class="kg-col">kg</th>
-                            <th class="reps-col">Reps</th>
+                            <th class="reps-col">${ex.metric === 'time' ? 'Time' : 'Reps'}</th>
                             <th class="remove-col"></th>
                             <th class="check-col"></th>
                         </tr></thead>
@@ -1025,7 +1102,7 @@
                                     set=${s}
                                     isExtra=${s > ex.sets}
                                     exLogs=${exLogs}
-                                    lastData=${lastData}
+                                    prevSets=${prevSets}
                                     ex=${ex}
                                 />
                             `)}
@@ -1100,8 +1177,8 @@
 
             const st = appState.value;
             const dayData = pd[st.currentDay];
-            const weekKey = 'week' + st.currentWeek.toLowerCase();
-            const exercises = dayData.mainA[weekKey] || dayData.mainA.weekA;
+            invariant(dayData, `Missing day ${st.currentDay} in program data`);
+            const exercises = getMainExercisesForWeek(dayData, st.currentWeek, `WorkoutContent day=${st.currentDay}`);
             const logs = st.exerciseLogs[st.currentCycle]?.[st.currentWeek]?.[st.currentDay] || {};
 
             const filterWeekB = (arr) => arr ? arr.filter(ex => !ex.isWeekB || st.currentWeek === 'B') : [];
