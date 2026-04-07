@@ -2,8 +2,8 @@
     "1": {
         "name": "Lower — Quad Emphasis",
         "warmup": [
-            { "name": "Sled — Backwards", "sets": 1, "reps": "3 min", "targetWeight": null },
-            { "name": "Pigeon Stretch", "sets": 2, "reps": "45 sec/leg", "targetWeight": null },
+            { "name": "Sled — Backwards", "sets": 1, "reps": "3 min", "targetWeight": null, "metric": "time" },
+            { "name": "Pigeon Stretch", "sets": 2, "reps": "45 sec/leg", "targetWeight": null, "metric": "time" },
             { "name": "Butterfly Stretch", "sets": 1, "reps": "15-20 reps", "targetWeight": null },
             { "name": "Bodyweight Squats", "sets": 1, "reps": "10 reps", "targetWeight": null }
         ],
@@ -33,8 +33,8 @@
     "2": {
         "name": "Upper Push",
         "warmup": [
-            { "name": "Sled — Backwards", "sets": 1, "reps": "3 min", "targetWeight": null },
-            { "name": "T-Stretch", "sets": 1, "reps": "1 min", "targetWeight": null },
+            { "name": "Sled — Backwards", "sets": 1, "reps": "3 min", "targetWeight": null, "metric": "time" },
+            { "name": "T-Stretch", "sets": 1, "reps": "1 min", "targetWeight": null, "metric": "time" },
             { "name": "Band Pull-Aparts", "sets": 1, "reps": "20 reps", "targetWeight": null },
             { "name": "Push-Up", "sets": 1, "reps": "10 reps", "targetWeight": null }
         ],
@@ -69,7 +69,7 @@
     "3": {
         "name": "Lower — Posterior Chain",
         "warmup": [
-            { "name": "Sled — Backwards", "sets": 1, "reps": "3 min", "targetWeight": null },
+            { "name": "Sled — Backwards", "sets": 1, "reps": "3 min", "targetWeight": null, "metric": "time" },
             { "name": "Elephant Walk", "sets": 1, "reps": "15 reps/side", "targetWeight": null },
             { "name": "Standing Pancake Pulse", "sets": 1, "reps": "20 reps", "targetWeight": null },
             { "name": "Glute Bridge", "sets": 1, "reps": "10 reps, 2 sec hold", "targetWeight": null }
@@ -99,14 +99,14 @@
         ],
         "shoulderHealth": [],
         "extra": [
-            { "name": "Couch Stretch", "sets": 1, "reps": "45 sec/side", "targetWeight": null }
+            { "name": "Couch Stretch", "sets": 1, "reps": "45 sec/side", "targetWeight": null, "metric": "time" }
         ]
     },
     "4": {
         "name": "Upper Pull",
         "warmup": [
-            { "name": "Sled — Backwards", "sets": 1, "reps": "3 min", "targetWeight": null },
-            { "name": "Butcher's Block Stretch", "sets": 1, "reps": "1 min", "targetWeight": null },
+            { "name": "Sled — Backwards", "sets": 1, "reps": "3 min", "targetWeight": null, "metric": "time" },
+            { "name": "Butcher's Block Stretch", "sets": 1, "reps": "1 min", "targetWeight": null, "metric": "time" },
             { "name": "Band Pull-Apart", "sets": 1, "reps": "15 reps", "targetWeight": null },
             { "name": "Ring Row/Light Cable Row", "sets": 1, "reps": "10 reps", "targetWeight": null }
         ],
@@ -140,7 +140,7 @@
     "5": {
         "name": "Arms, Shoulders & Mobility",
         "warmup": [
-            { "name": "Sled — Backwards", "sets": 1, "reps": "3 min", "targetWeight": null },
+            { "name": "Sled — Backwards", "sets": 1, "reps": "3 min", "targetWeight": null, "metric": "time" },
             { "name": "Shoulder Circles", "sets": 1, "reps": "20 each", "targetWeight": null },
             { "name": "Band Pull-Apart", "sets": 1, "reps": "15 reps", "targetWeight": null },
             { "name": "Light DB Press", "sets": 1, "reps": "10 reps", "targetWeight": null }
@@ -160,7 +160,6 @@
         "accessories": [
             { "name": "Scott Curl (preacher)", "sets": 3, "reps": "10", "targetWeight": null },
             { "name": "French Press", "sets": 3, "reps": "10", "targetWeight": null },
-            { "name": "Scott Curl (different grip)", "sets": 3, "reps": "10-12", "targetWeight": null },
             { "name": "Tricep Pushdown (rope)", "sets": 3, "reps": "12-15", "targetWeight": null }
         ],
         "shoulderHealth": [
@@ -176,7 +175,6 @@
             { "name": "Standing Pancake Pulse", "sets": 3, "reps": "20", "targetWeight": null }
         ],
         "extra": [
-            { "name": "Scott Curl (slow negative)", "sets": 2, "reps": "10-12", "targetWeight": null },
             { "name": "Close-Grip Bench/Dips", "sets": 2, "reps": "8-12", "targetWeight": null },
             { "name": "Pigeon Push-Up", "sets": 2, "reps": "15", "targetWeight": null }
         ]
