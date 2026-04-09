@@ -513,6 +513,41 @@
 <body>
     <div id="app"></div>
 
+    <script>
+        // Bootstrap watchdog that runs even if module imports fail.
+        window.__clawgainsBooted = false;
+        window.__clawgainsBootTimer = setTimeout(() => {
+            if (window.__clawgainsBooted) return;
+            const root = document.getElementById('app');
+            if (root) {
+                root.innerHTML = `
+                    <div style="padding:16px;color:#ff8a8a;font-family:system-ui">
+                        <div style="font-weight:600;margin-bottom:8px">Claw Gains failed to load</div>
+                        <div style="margin-bottom:8px">Please refresh once. If it keeps happening, the app resources may be blocked or stale.</div>
+                    </div>`;
+            }
+            try {
+                const payload = JSON.stringify({
+                    kind: 'bootstrap.timeout',
+                    href: location.href,
+                    readyState: document.readyState,
+                    online: navigator.onLine,
+                    ua: navigator.userAgent,
+                    ts: new Date().toISOString(),
+                });
+                if (navigator.sendBeacon) {
+                    navigator.sendBeacon('/api/client-error', new Blob([payload], { type: 'application/json' }));
+                } else {
+                    fetch('/api/client-error', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: payload,
+                    }).catch(() => {});
+                }
+            } catch {}
+        }, 7000);
+    </script>
+
     <script type="module">
         import { h, render } from 'https://esm.sh/preact@10.25.4';
         import { useState, useEffect, useRef, useCallback, useMemo } from 'https://esm.sh/preact@10.25.4/hooks';
@@ -566,6 +601,8 @@
                 col: evt?.colno,
                 stack: evt?.error?.stack,
             });
+            window.__clawgainsBooted = true;
+            if (window.__clawgainsBootTimer) clearTimeout(window.__clawgainsBootTimer);
             renderFatal('Unexpected runtime error. Please refresh.', detail);
         });
 
@@ -576,6 +613,8 @@
                 reason: typeof reason === 'string' ? reason : safeStringify(reason),
                 stack: reason?.stack,
             });
+            window.__clawgainsBooted = true;
+            if (window.__clawgainsBootTimer) clearTimeout(window.__clawgainsBootTimer);
             renderFatal('Unhandled async error. Please refresh.', detail);
         });
 
@@ -1364,12 +1403,16 @@
                 if (!resp.ok) throw new Error(`Failed to load program.json (${resp.status})`);
                 programData.value = await resp.json();
                 render(html`<${App} />`, document.getElementById('app'));
+                window.__clawgainsBooted = true;
+                if (window.__clawgainsBootTimer) clearTimeout(window.__clawgainsBootTimer);
             } catch (err) {
                 reportClientError('init.failure', {
                     message: err?.message,
                     stack: err?.stack,
                 });
                 renderFatal('Failed to load Claw Gains. Please refresh.', err?.message || 'Unknown init error');
+                window.__clawgainsBooted = true;
+                if (window.__clawgainsBootTimer) clearTimeout(window.__clawgainsBootTimer);
                 console.error(err);
             }
         }
