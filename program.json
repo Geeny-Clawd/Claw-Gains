@@ -40,31 +40,24 @@
         ],
         "mainA": {
             "weekA": [
-                { "name": "Flat Barbell Bench Press", "sets": 4, "reps": "5-7", "targetWeight": null },
-                { "name": "ATG Incline Press", "sets": 3, "reps": "8-10", "targetWeight": null },
-                { "name": "Overhead Press", "sets": 3, "reps": "6-8", "targetWeight": null },
-                { "name": "Dips", "sets": 3, "reps": "8-20", "targetWeight": null }
+                { "name": "Flat Barbell Bench Press", "sets": 3, "reps": "5-8", "targetWeight": null },
+                { "name": "ATG Incline Press", "sets": 2, "reps": "8-12", "targetWeight": null },
+                { "name": "Overhead Press", "sets": 2, "reps": "6-10", "targetWeight": null }
             ],
             "weekB": [
-                { "name": "Flat Barbell Bench Press", "sets": 4, "reps": "5-7", "targetWeight": null },
-                { "name": "ATG Shoulder Press DB", "sets": 3, "reps": "10 each arm", "targetWeight": 18.25 },
-                { "name": "Incline Dumbbell Press", "sets": 3, "reps": "8-10", "targetWeight": null },
-                { "name": "Dips", "sets": 3, "reps": "8-20", "targetWeight": null }
+                { "name": "Flat Barbell Bench Press", "sets": 3, "reps": "5-8", "targetWeight": null },
+                { "name": "ATG Incline Press", "sets": 2, "reps": "8-12", "targetWeight": null },
+                { "name": "Dips", "sets": 2, "reps": "8-15", "targetWeight": null }
             ]
         },
         "accessories": [
-            { "name": "Lateral Raise", "sets": 3, "reps": "12-15", "targetWeight": null },
-            { "name": "Tricep Pushdown", "sets": 3, "reps": "10-15", "targetWeight": null }
+            { "name": "Lateral Raise", "sets": 2, "reps": "12-20", "targetWeight": null },
+            { "name": "Tricep Pushdown", "sets": 2, "reps": "10-15", "targetWeight": null }
         ],
         "shoulderHealth": [
-            { "name": "Powell Raise", "sets": 3, "reps": "8", "targetWeight": 7.25 },
-            { "name": "Face Pull", "sets": 2, "reps": "15", "targetWeight": null }
+            { "name": "Face Pull", "sets": 2, "reps": "12-20", "targetWeight": null }
         ],
-        "extra": [
-            { "name": "Pigeon Push-Up", "sets": 3, "reps": "20", "targetWeight": null },
-            { "name": "Cable Flye/Pec Deck", "sets": 2, "reps": "12-15", "targetWeight": null },
-            { "name": "Overhead Tricep Extension", "sets": 2, "reps": "12", "targetWeight": null }
-        ]
+        "extra": []
     },
     "3": {
         "name": "Lower — Posterior Chain",

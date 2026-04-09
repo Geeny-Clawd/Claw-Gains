@@ -55,7 +55,7 @@ Extra Time (+15–20 min)
 Exercise    Sets × Reps
 Walking Lunges  2 × 12 each leg
 Couch Stretch   3 × 20 reps + 1 min hold each side (target: 36.25 kg)
-Day 2: Upper Push
+Day 2: Upper Push (60-min optimized)
 Warm-Up (5–8 min)
 Exercise    Duration/Reps
 Sled — Backwards    3 minutes
@@ -65,29 +65,21 @@ Push-Up 10 reps
 Main Work — Straight Sets
 WEEK A
 Exercise    Sets × Reps Notes
-A1. Flat Barbell Bench Press    4 × 5–7 Main pressing strength.
-A2. ATG Incline Press   3 × 8–10    Full range, deep stretch at bottom.
-B1. Overhead Press (standing)   3 × 6–8 Barbell, strict form.
-B2. Dips    3 × 8–20    Target: 20 reps bodyweight, then add weight.
+A1. Flat Barbell Bench Press    3 × 5–8 Main pressing strength.
+A2. ATG Incline Press   2 × 8–12    Full range, deep stretch at bottom.
+B1. Overhead Press (standing)   2 × 6–10    Barbell, strict form.
 WEEK B
 Exercise    Sets × Reps Notes
-A1. Flat Barbell Bench Press    4 × 5–7 Main pressing strength.
-A2. ATG Shoulder Press (DB) 3 × 10 each arm Target: 18.25 kg per hand. Full range overhead.
-B1. Incline Dumbbell Press  3 × 8–10    30–45° incline.
-B2. Dips    3 × 8–20    Target: 20 reps bodyweight, then add weight.
-Accessories
+A1. Flat Barbell Bench Press    3 × 5–8 Main pressing strength.
+A2. ATG Incline Press   2 × 8–12    Full range, deep stretch at bottom.
+B1. Dips    2 × 8–15    Bodyweight or weighted progression.
+Accessories (Superset)
 Exercise    Sets × Reps Notes
-Lateral Raise   3 × 12–15   Controlled, no swinging.
-Tricep Pushdown 3 × 10–15   Full extension.
+Lateral Raise   2 × 12–20   Controlled, no swinging.
+Tricep Pushdown 2 × 10–15   Full extension.
 Shoulder Health
 Exercise    Sets × Reps
-Powell Raise    3 × 8 (target: 7.25 kg)
-Face Pull   2 × 15
-Extra Time (+15–20 min)
-Exercise    Sets × Reps
-Pigeon Push-Up  3 × 20 (bodyweight)
-Cable Flye or Pec Deck  2 × 12–15
-Overhead Tricep Extension   2 × 12
+Face Pull   2 × 12–20
 Day 3: Lower — Posterior Chain
 Warm-Up (5–8 min)
 Exercise    Duration/Reps
@@ -256,6 +248,6 @@ Neck Flexion    7.25 kg × 10 reps
 Quick Reference: Week A vs Week B
 Day Week A  Week B
 Day 1   Back Squat + ATG Split Squat    Front Squat + Poliquin Step Up
-Day 2   Bench + ATG Incline + OHP   Bench + ATG Shoulder Press + Incline DB
+Day 2   Bench + ATG Incline + OHP   Bench + ATG Incline + Dips
 Day 3   RDL + Nordic + Back Ext RDL + Seated Good Morning + Nordic (+ Bent Calf)
 Day 4   Pull-Up + BB Row + Pullover Pull-Up + Chest-Supported Row + PulloveR
