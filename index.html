@@ -543,19 +543,22 @@
         const timerRemaining = signal(0);
         const programData = signal(null);
         const historyCache = signal(null);
+        const isFinishing = signal(false);
+        const finishError = signal(null);
 
         // ── Persistence ──────────────────────────────────────────────
 
-        function persistAndSync() {
+        function persistAndSync(options = {}) {
+            const { skipSync = false } = options;
             historyCache.value = null;
             localStorage.setItem('clawgains_state', JSON.stringify(appState.value));
-            debouncedSync();
+            if (!skipSync) debouncedSync();
         }
 
-        function mutateState(fn) {
+        function mutateState(fn, options = {}) {
             fn(appState.value);
             appState.value = { ...appState.value };
-            persistAndSync();
+            persistAndSync(options);
         }
 
         let syncTimer = null;
@@ -605,11 +608,9 @@
             throw new Error(`Exercise not found in program sections (day=${dayNum}, week=${week}): ${exerciseName}`);
         }
 
-        function syncToServer() {
-            const pd = programData.value;
-            if (!pd) return;
+        function buildWorkoutPayload(target, completedAtOverride = undefined) {
+            const { cycle, week, day } = target;
             const st = appState.value;
-            const { currentCycle: cycle, currentWeek: week, currentDay: day } = st;
             const logs = st.exerciseLogs[cycle]?.[week]?.[day] || {};
             const isDone = st.dayCompletion[cycle]?.[week]?.[day];
             const dayNote = (st.dayNotes && st.dayNotes[cycle]?.[week]?.[day]) || null;
@@ -630,18 +631,38 @@
                 });
             }
 
-            const payload = {
+            return {
                 cycle, week, day,
                 day_note: dayNote,
-                completed_at: isDone ? new Date().toISOString() : null,
+                completed_at: completedAtOverride !== undefined
+                    ? completedAtOverride
+                    : (isDone ? new Date().toISOString() : null),
                 exercises
             };
+        }
 
-            fetch('/api/workout', {
+        async function syncWorkoutToServer(target, completedAtOverride = undefined) {
+            const payload = buildWorkoutPayload(target, completedAtOverride);
+            const resp = await fetch('/api/workout', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
-            }).catch(() => {});
+            });
+            if (!resp.ok) {
+                throw new Error(`Workout sync failed: ${resp.status}`);
+            }
+        }
+
+        function syncToServer() {
+            const pd = programData.value;
+            if (!pd) return;
+            const st = appState.value;
+            const target = {
+                cycle: st.currentCycle,
+                week: st.currentWeek,
+                day: st.currentDay
+            };
+            syncWorkoutToServer(target).catch(() => {});
         }
 
         // ── Audio ────────────────────────────────────────────────────
@@ -877,20 +898,52 @@
             });
         }
 
-        function finishWorkout() {
+        async function finishWorkout() {
+            if (isFinishing.value) return;
+
+            clearTimeout(syncTimer);
+
             const st = appState.value;
-            const wasComplete = st.dayCompletion[st.currentCycle]?.[st.currentWeek]?.[st.currentDay];
+            const target = {
+                cycle: st.currentCycle,
+                week: st.currentWeek,
+                day: st.currentDay
+            };
+            const wasComplete = st.dayCompletion[target.cycle]?.[target.week]?.[target.day];
+            const completedAt = new Date().toISOString();
 
-            mutateState(st => {
-                if (!st.dayCompletion[st.currentCycle]) st.dayCompletion[st.currentCycle] = {};
-                if (!st.dayCompletion[st.currentCycle][st.currentWeek]) st.dayCompletion[st.currentCycle][st.currentWeek] = {};
-                st.dayCompletion[st.currentCycle][st.currentWeek][st.currentDay] = true;
-                if (!wasComplete && st.currentDay < 5) {
-                    st.currentDay++;
+            finishError.value = null;
+            isFinishing.value = true;
+
+            // Always persist local state immediately, but don't debounce-sync here.
+            mutateState(s => {
+                if (!s.dayCompletion[target.cycle]) s.dayCompletion[target.cycle] = {};
+                if (!s.dayCompletion[target.cycle][target.week]) s.dayCompletion[target.cycle][target.week] = {};
+                s.dayCompletion[target.cycle][target.week][target.day] = true;
+            }, { skipSync: true });
+
+            try {
+                await syncWorkoutToServer(target, completedAt);
+
+                // Only advance after server confirms save.
+                if (!wasComplete) {
+                    mutateState(s => {
+                        if (s.currentCycle !== target.cycle || s.currentWeek !== target.week || s.currentDay !== target.day) {
+                            return;
+                        }
+                        if (s.currentDay < 5) {
+                            s.currentDay++;
+                        }
+                    }, { skipSync: true });
                 }
-            });
 
-            alert('Workout saved! Great job!');
+                alert('Workout saved! Great job!');
+            } catch (err) {
+                finishError.value = 'Saved locally, but sync to server failed. Retry Finish.';
+                alert('Saved locally, but sync failed. Please tap Finish again.');
+            } finally {
+                isFinishing.value = false;
+            }
         }
 
         function nextCycle() {
@@ -911,8 +964,11 @@
             return html`
                 <div class="header">
                     <span class="header-title">Claw Gains</span>
-                    <button class="finish-btn" onClick=${finishWorkout}>Finish</button>
+                    <button class="finish-btn" disabled=${isFinishing.value} onClick=${finishWorkout}>
+                        ${isFinishing.value ? 'Saving…' : 'Finish'}
+                    </button>
                 </div>
+                ${finishError.value ? html`<div style="margin: 8px 16px; color: #ff8a8a; font-size: 0.8rem;">${finishError.value}</div>` : null}
             `;
         }
 
