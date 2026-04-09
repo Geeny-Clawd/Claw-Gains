@@ -1,5 +1,6 @@
 import sqlite3
 import os
+import json
 from datetime import datetime, timezone
 
 from flask import Flask, request, jsonify, send_from_directory
@@ -125,6 +126,25 @@ def save_workout():
     finally:
         conn.close()
 
+    return jsonify({"ok": True})
+
+
+@app.route("/api/client-error", methods=["POST"])
+def client_error():
+    data = request.get_json(silent=True) or {}
+    log_path = os.path.join(APP_DIR, "client_errors.log")
+    try:
+        row = {
+            "ts": datetime.now(timezone.utc).isoformat(),
+            "ip": request.remote_addr,
+            "ua": request.headers.get("User-Agent"),
+            "error": data,
+        }
+        with open(log_path, "a", encoding="utf-8") as f:
+            f.write(json.dumps(row, ensure_ascii=False) + "\n")
+    except Exception:
+        # Best-effort telemetry endpoint; never fail the UI because logging failed.
+        pass
     return jsonify({"ok": True})
 
 

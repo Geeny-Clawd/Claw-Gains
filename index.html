@@ -521,6 +521,64 @@
 
         const html = htm.bind(h);
 
+        const RUNTIME_ID = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+
+        function renderFatal(message, detail = '') {
+            const root = document.getElementById('app');
+            if (!root) return;
+            root.innerHTML = `
+                <div style="padding:16px;color:#ff8a8a;font-family:system-ui">
+                    <div style="font-weight:600;margin-bottom:8px">Claw Gains hit an error</div>
+                    <div style="margin-bottom:8px">${message}</div>
+                    ${detail ? `<div style="opacity:.8;font-size:.85em;word-break:break-word">${detail}</div>` : ''}
+                    <div style="margin-top:10px;font-size:.8em;opacity:.75">Session: ${RUNTIME_ID}</div>
+                </div>`;
+        }
+
+        function safeStringify(value) {
+            try {
+                return JSON.stringify(value);
+            } catch {
+                return String(value);
+            }
+        }
+
+        function reportClientError(kind, payload = {}) {
+            const body = {
+                kind,
+                runtimeId: RUNTIME_ID,
+                href: location.href,
+                ...payload,
+            };
+            return fetch('/api/client-error', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body),
+            }).catch(() => {});
+        }
+
+        window.addEventListener('error', (evt) => {
+            const detail = evt?.error?.stack || evt?.message || 'Unknown error';
+            reportClientError('window.error', {
+                message: evt?.message,
+                source: evt?.filename,
+                line: evt?.lineno,
+                col: evt?.colno,
+                stack: evt?.error?.stack,
+            });
+            renderFatal('Unexpected runtime error. Please refresh.', detail);
+        });
+
+        window.addEventListener('unhandledrejection', (evt) => {
+            const reason = evt?.reason;
+            const detail = typeof reason === 'string' ? reason : (reason?.stack || reason?.message || 'Unhandled promise rejection');
+            reportClientError('window.unhandledrejection', {
+                reason: typeof reason === 'string' ? reason : safeStringify(reason),
+                stack: reason?.stack,
+            });
+            renderFatal('Unhandled async error. Please refresh.', detail);
+        });
+
         // ── Signals ──────────────────────────────────────────────────
 
         const defaultState = {
@@ -1307,8 +1365,11 @@
                 programData.value = await resp.json();
                 render(html`<${App} />`, document.getElementById('app'));
             } catch (err) {
-                const root = document.getElementById('app');
-                root.innerHTML = `<div style="padding:16px;color:#ff8a8a;font-family:system-ui">Failed to load Claw Gains. Please refresh. ${err?.message || ''}</div>`;
+                reportClientError('init.failure', {
+                    message: err?.message,
+                    stack: err?.stack,
+                });
+                renderFatal('Failed to load Claw Gains. Please refresh.', err?.message || 'Unknown init error');
                 console.error(err);
             }
         }
