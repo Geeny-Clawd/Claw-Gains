@@ -533,10 +533,33 @@
             exerciseNotes: {}
         };
 
+        function sanitizeState(raw = {}) {
+            const st = { ...defaultState, ...raw };
+
+            const cycleNum = Number(st.currentCycle);
+            st.currentCycle = Number.isFinite(cycleNum) && cycleNum >= 1 ? Math.floor(cycleNum) : 1;
+
+            const dayNum = Number(st.currentDay);
+            st.currentDay = Number.isFinite(dayNum) && dayNum >= 1 && dayNum <= 5 ? Math.floor(dayNum) : 1;
+
+            st.currentWeek = (st.currentWeek === 'A' || st.currentWeek === 'B') ? st.currentWeek : 'A';
+
+            st.dayCompletion = (st.dayCompletion && typeof st.dayCompletion === 'object') ? st.dayCompletion : {};
+            st.exerciseLogs = (st.exerciseLogs && typeof st.exerciseLogs === 'object') ? st.exerciseLogs : {};
+            st.dayNotes = (st.dayNotes && typeof st.dayNotes === 'object') ? st.dayNotes : {};
+            st.exerciseNotes = (st.exerciseNotes && typeof st.exerciseNotes === 'object') ? st.exerciseNotes : {};
+
+            return st;
+        }
+
         function loadState() {
             const saved = localStorage.getItem('clawgains_state');
-            if (saved) return { ...defaultState, ...JSON.parse(saved) };
-            return { ...defaultState };
+            if (!saved) return { ...defaultState };
+            try {
+                return sanitizeState(JSON.parse(saved));
+            } catch {
+                return { ...defaultState };
+            }
         }
 
         const appState = signal(loadState());
@@ -1278,9 +1301,16 @@
         // ── Bootstrap ────────────────────────────────────────────────
 
         async function init() {
-            const resp = await fetch('/program.json');
-            programData.value = await resp.json();
-            render(html`<${App} />`, document.getElementById('app'));
+            try {
+                const resp = await fetch('/program.json');
+                if (!resp.ok) throw new Error(`Failed to load program.json (${resp.status})`);
+                programData.value = await resp.json();
+                render(html`<${App} />`, document.getElementById('app'));
+            } catch (err) {
+                const root = document.getElementById('app');
+                root.innerHTML = `<div style="padding:16px;color:#ff8a8a;font-family:system-ui">Failed to load Claw Gains. Please refresh. ${err?.message || ''}</div>`;
+                console.error(err);
+            }
         }
 
         init();
