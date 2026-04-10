@@ -512,6 +512,9 @@
 </head>
 <body>
     <div id="app"></div>
+    <div id="bootFallback" style="padding:16px;color:#ff8a8a;font-family:system-ui;">
+        Loading Claw Gains… If this stays blank for more than 10 seconds, refresh once.
+    </div>
 
     <script>
         // Bootstrap watchdog that runs even if module imports fail.
@@ -560,6 +563,8 @@
 
         function renderFatal(message, detail = '') {
             const root = document.getElementById('app');
+            const fallback = document.getElementById('bootFallback');
+            if (fallback) fallback.style.display = 'none';
             if (!root) return;
             root.innerHTML = `
                 <div style="padding:16px;color:#ff8a8a;font-family:system-ui">
@@ -1403,6 +1408,8 @@
                 if (!resp.ok) throw new Error(`Failed to load program.json (${resp.status})`);
                 programData.value = await resp.json();
                 render(html`<${App} />`, document.getElementById('app'));
+                const fallback = document.getElementById('bootFallback');
+                if (fallback) fallback.style.display = 'none';
                 window.__clawgainsBooted = true;
                 if (window.__clawgainsBootTimer) clearTimeout(window.__clawgainsBootTimer);
             } catch (err) {

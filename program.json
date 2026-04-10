@@ -60,7 +60,7 @@
         "extra": []
     },
     "3": {
-        "name": "Lower — Posterior Chain",
+        "name": "Lower — Posterior Chain (60-min optimized)",
         "warmup": [
             { "name": "Sled — Backwards", "sets": 1, "reps": "3 min", "targetWeight": null, "metric": "time" },
             { "name": "Elephant Walk", "sets": 1, "reps": "15 reps/side", "targetWeight": null },
@@ -69,27 +69,22 @@
         ],
         "mainA": {
             "weekA": [
-                { "name": "Romanian Deadlift", "sets": 4, "reps": "6-8", "targetWeight": null },
-                { "name": "Hip Thrust (Barbell)", "sets": 4, "reps": "6-10", "targetWeight": 100 },
-                { "name": "Nordic Curl", "sets": 3, "reps": "5-8", "targetWeight": null },
-                { "name": "Back Extension", "sets": 3, "reps": "8-12", "targetWeight": 18.25 }
+                { "name": "Romanian Deadlift", "sets": 3, "reps": "6-10", "targetWeight": null },
+                { "name": "Hip Thrust (Barbell)", "sets": 3, "reps": "8-12", "targetWeight": 100 },
+                { "name": "Nordic Curl", "sets": 2, "reps": "5-8", "targetWeight": null }
             ],
             "weekB": [
-                { "name": "Romanian Deadlift", "sets": 4, "reps": "6-8", "targetWeight": null },
-                { "name": "Hip Thrust (Barbell)", "sets": 4, "reps": "6-10", "targetWeight": 100 },
-                { "name": "Seated Good Morning", "sets": 3, "reps": "10", "targetWeight": 48 },
-                { "name": "Nordic Curl", "sets": 3, "reps": "5-8", "targetWeight": null },
-                { "name": "Back Extension", "sets": 3, "reps": "8-12", "targetWeight": 18.25 }
+                { "name": "Romanian Deadlift", "sets": 3, "reps": "6-10", "targetWeight": null },
+                { "name": "Hip Thrust (Barbell)", "sets": 3, "reps": "8-12", "targetWeight": 100 },
+                { "name": "Back Extension", "sets": 2, "reps": "8-12", "targetWeight": 18.25 }
             ]
         },
         "calfTibialis": [
-            { "name": "Straight-Leg Calf Raise", "sets": 3, "reps": "12 each leg", "targetWeight": 18.25 },
-            { "name": "Tibialis Raise", "sets": 3, "reps": "15-20", "targetWeight": 14.5 },
-            { "name": "Bent Calf Raise (seated)", "sets": 3, "reps": "15", "targetWeight": 18.25, "isWeekB": true }
+            { "name": "Straight-Leg Calf Raise", "sets": 2, "reps": "12 each leg", "targetWeight": 18.25 },
+            { "name": "Tibialis Raise", "sets": 2, "reps": "15-20", "targetWeight": 14.5 },
+            { "name": "Bent Calf Raise (seated)", "sets": 2, "reps": "15", "targetWeight": 18.25, "isWeekB": true }
         ],
-        "accessories": [
-            { "name": "Lying Leg Curl", "sets": 3, "reps": "10-12", "targetWeight": null }
-        ],
+        "accessories": [],
         "shoulderHealth": [],
         "extra": [
             { "name": "Couch Stretch", "sets": 1, "reps": "45 sec/side", "targetWeight": null, "metric": "time" }

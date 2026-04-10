@@ -80,7 +80,7 @@ Tricep Pushdown 2 × 10–15   Full extension.
 Shoulder Health
 Exercise    Sets × Reps
 Face Pull   2 × 12–20
-Day 3: Lower — Posterior Chain
+Day 3: Lower — Posterior Chain (60-min optimized)
 Warm-Up (5–8 min)
 Exercise    Duration/Reps
 Sled — Backwards    3 minutes
@@ -90,27 +90,23 @@ Glute Bridge    10 reps (hold 2 sec at top)
 Main Work — Straight Sets
 WEEK A
 Exercise    Sets × Reps Notes
-A1. Romanian Deadlift   4 × 6–8 Target: 72.5 kg for 12 reps long-term. Slow negative.
-A2. Hip Thrust (Barbell)    4 × 6–10    Heavy. Target: 100 kg+. Full hip extension, pause at top.
-B1. Nordic Curl 3 × 5–8 Target: 5 reps bodyweight. Use assistance if needed.
-B2. Back Extension  3 × 8–12    Target: 18.25 kg held at chest.
+A1. Romanian Deadlift   3 × 6–10 Target: 72.5 kg for 12 reps long-term. Slow negative.
+A2. Hip Thrust (Barbell)    3 × 8–12    Heavy. Target: 100 kg+. Full hip extension, pause at top.
+B1. Nordic Curl 2 × 5–8 Target: 5 reps bodyweight. Use assistance if needed.
 WEEK B
 Exercise    Sets × Reps Notes
-A1. Romanian Deadlift   4 × 6–8 Target: 72.5 kg for 12 reps long-term.
-A2. Hip Thrust (Barbell)    4 × 6–10    Heavy. Target: 100 kg+. Full hip extension, pause at top.
-B1. Seated Good Morning 3 × 10  Target: 48 kg. Sit on bench, hinge forward.
-B2. Nordic Curl 3 × 5–8 Target: 5 reps bodyweight.
-B3. Back Extension  3 × 8–12    Target: 18.25 kg held at chest.
+A1. Romanian Deadlift   3 × 6–10 Target: 72.5 kg for 12 reps long-term.
+A2. Hip Thrust (Barbell)    3 × 8–12    Heavy. Target: 100 kg+. Full hip extension, pause at top.
+B1. Back Extension  2 × 8–12    Target: 18.25 kg held at chest.
 Calf & Tibialis
 Exercise    Sets × Reps
-Straight-Leg Calf Raise 3 × 12 each leg (target: 18.25 kg)
-Tibialis Raise  3 × 15–20 (target: 14.5 kg)
+Straight-Leg Calf Raise 2 × 12 each leg (target: 18.25 kg)
+Tibialis Raise  2 × 15–20 (target: 14.5 kg)
 WEEK B — Add:
 Exercise    Sets × Reps
-Bent Calf Raise (seated)    3 × 15 (target: 18.25 kg)
-Extra Time (+15–20 min)
+Bent Calf Raise (seated)    2 × 15 (target: 18.25 kg)
+Extra Time (+5 min)
 Exercise    Sets × Reps
-Lying Leg Curl  3 × 10–12
 Couch Stretch   45 sec each side
 Day 4: Upper Pull
 Warm-Up (5–8 min)
@@ -249,5 +245,5 @@ Quick Reference: Week A vs Week B
 Day Week A  Week B
 Day 1   Back Squat + ATG Split Squat    Front Squat + Poliquin Step Up
 Day 2   Bench + ATG Incline + OHP   Bench + ATG Incline + Dips
-Day 3   RDL + Nordic + Back Ext RDL + Seated Good Morning + Nordic (+ Bent Calf)
+Day 3   RDL + Hip Thrust + Nordic   RDL + Hip Thrust + Back Ext (+ Bent Calf)
 Day 4   Pull-Up + BB Row + Pullover Pull-Up + Chest-Supported Row + PulloveR
