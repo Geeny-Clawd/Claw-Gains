@@ -11,6 +11,15 @@ DB_PATH = os.path.join(APP_DIR, "workout.db")
 app = Flask(__name__)
 
 
+@app.after_request
+def add_no_cache_headers(resp):
+    # Prevent Safari/iOS from pinning stale app shells that can cause blank-screen loops.
+    resp.headers["Cache-Control"] = "no-store, max-age=0, must-revalidate"
+    resp.headers["Pragma"] = "no-cache"
+    resp.headers["Expires"] = "0"
+    return resp
+
+
 # --- SQLite setup ---
 
 def get_db():
