@@ -819,6 +819,11 @@
 
         // ── History helpers ──────────────────────────────────────────
 
+        function hasNonZeroWeight(log) {
+            const weight = Number(log?.weight);
+            return Number.isFinite(weight) && weight !== 0;
+        }
+
         function getAllHistory() {
             if (historyCache.value) return historyCache.value;
             const history = {};
@@ -828,7 +833,7 @@
                     for (const [day, dayData] of Object.entries(weekData)) {
                         for (const [exName, exLogs] of Object.entries(dayData)) {
                             for (const log of exLogs) {
-                                if (log.done && log.weight > 0) {
+                                if (log.done && hasNonZeroWeight(log)) {
                                     if (!history[exName]) history[exName] = [];
                                     history[exName].push({
                                         cycle: parseInt(cycle),
@@ -856,7 +861,7 @@
                     for (const [d, dayData] of Object.entries(weekData)) {
                         if (+c === currentCycle && w === currentWeek && +d === currentDay) continue;
                         const exLogs = dayData[exerciseName];
-                        if (exLogs && exLogs.some(log => log.done && log.weight > 0)) {
+                        if (exLogs && exLogs.some(log => log.done && hasNonZeroWeight(log))) {
                             sessions.push({ cycle: +c, week: w, day: +d, sets: exLogs });
                         }
                     }
@@ -929,7 +934,7 @@
                 const dayLogs = st.exerciseLogs[st.currentCycle]?.[st.currentWeek]?.[st.currentDay]?.[exerciseName] || [];
                 for (let i = setNum - 2; i >= 0; i--) {
                     const prev = dayLogs[i];
-                    if (prev && (prev.weight > 0 || prev.reps || prev.done)) {
+                    if (prev && (hasNonZeroWeight(prev) || prev.reps || prev.done)) {
                         ghostWeight = prev.weight || 0;
                         ghostReps = prev.reps || '';
                         break;
@@ -938,7 +943,7 @@
                 if (ghostWeight === 0 && ghostReps === '') {
                     const prevSets = getPreviousWorkoutSets(exerciseName);
                     const prevSet = prevSets?.[setNum - 1];
-                    const fallback = (prevSet && prevSet.weight > 0) ? prevSet : prevSets?.find(s => s && s.weight > 0);
+                    const fallback = (prevSet && hasNonZeroWeight(prevSet)) ? prevSet : prevSets?.find(s => s && hasNonZeroWeight(s));
                     if (fallback) { ghostWeight = fallback.weight || 0; ghostReps = fallback.reps || ''; }
                 }
             }
@@ -1176,19 +1181,19 @@
 
         function SetRow({ exerciseName, set, isExtra, exLogs, prevSets, ex }) {
             const logData = exLogs[set - 1];
-            const hasRealData = logData?.weight > 0 || logData?.reps || logData?.done;
+            const hasRealData = hasNonZeroWeight(logData) || logData?.reps || logData?.done;
 
             function getGhostForSet(setIndex) {
                 for (let i = setIndex - 1; i >= 0; i--) {
                     const prev = exLogs[i];
-                    if (prev && (prev.weight > 0 || prev.reps || prev.done)) {
+                    if (prev && (hasNonZeroWeight(prev) || prev.reps || prev.done)) {
                         return { weight: prev.weight || '', reps: prev.reps || '' };
                     }
                 }
                 if (prevSets) {
                     const matchingPrev = prevSets[setIndex];
-                    if (matchingPrev && matchingPrev.weight > 0) return { weight: matchingPrev.weight || '', reps: matchingPrev.reps || '' };
-                    const anyPrev = prevSets.find(s => s && s.weight > 0);
+                    if (matchingPrev && hasNonZeroWeight(matchingPrev)) return { weight: matchingPrev.weight || '', reps: matchingPrev.reps || '' };
+                    const anyPrev = prevSets.find(s => s && hasNonZeroWeight(s));
                     if (anyPrev) return { weight: anyPrev.weight || '', reps: anyPrev.reps || '' };
                 }
                 return null;
@@ -1211,7 +1216,7 @@
             }
 
             const prevSetData = prevSets ? prevSets[set - 1] : null;
-            const prevDisplay = (prevSetData && prevSetData.done && prevSetData.weight > 0) ? `${prevSetData.weight}×${prevSetData.reps}` : '';
+            const prevDisplay = (prevSetData && prevSetData.done && hasNonZeroWeight(prevSetData)) ? `${prevSetData.weight}×${prevSetData.reps}` : '';
 
             return html`
                 <tr>
@@ -1219,7 +1224,7 @@
                     <td class="prev-val">${prevDisplay}</td>
                     <td><input type="number" class="kg-input" value=${weight}
                         onChange=${(e) => updateWeight(exerciseName, set, e.target.value)}
-                        placeholder=${ghostWeight || '0'} step="1" min="0" /></td>
+                        placeholder=${ghostWeight || '0'} step="1" /></td>
                     <td><input type="text" class="reps-input" value=${reps}
                         onChange=${(e) => updateReps(exerciseName, set, e.target.value)}
                         placeholder=${ghostReps || '0'} /></td>
