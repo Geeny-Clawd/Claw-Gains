@@ -9,24 +9,21 @@
         ],
         "mainA": {
             "weekA": [
-                { "name": "Back Squat", "sets": 4, "reps": "6-8", "targetWeight": null },
+                { "name": "Back Squat", "sets": 3, "reps": "8-12", "targetWeight": null },
                 { "name": "ATG Split Squat", "sets": 3, "reps": "8 each leg", "targetWeight": 18.25 },
                 { "name": "VMO Squat", "sets": 3, "reps": "8-12", "targetWeight": null }
             ],
             "weekB": [
-                { "name": "Front Squat", "sets": 4, "reps": "6-8", "targetWeight": null },
+                { "name": "Front Squat", "sets": 3, "reps": "8-12", "targetWeight": null },
                 { "name": "Poliquin Step Up", "sets": 3, "reps": "15 each leg", "targetWeight": 36.25 },
                 { "name": "VMO Squat", "sets": 3, "reps": "8-12", "targetWeight": null }
             ]
         },
         "prehab": [
-            { "name": "Hip Flexor Raises", "sets": 3, "reps": "20", "targetWeight": null },
-            { "name": "QL Extension", "sets": 3, "reps": "10-12 each side", "targetWeight": 18.25 }
+            { "name": "Hip Flexor Raises", "sets": 2, "reps": "20", "targetWeight": null },
+            { "name": "QL Extension", "sets": 2, "reps": "10-12 each side", "targetWeight": 18.25 }
         ],
-        "accessories": [
-            { "name": "Walking Lunges", "sets": 2, "reps": "12 each leg", "targetWeight": null },
-            { "name": "Couch Stretch", "sets": 3, "reps": "20 reps + 1 min hold", "targetWeight": 36.25 }
-        ],
+        "accessories": [],
         "shoulderHealth": [],
         "extra": []
     },
@@ -46,21 +43,20 @@
             ],
             "weekB": [
                 { "name": "Flat Barbell Bench Press", "sets": 3, "reps": "5-8", "targetWeight": null },
-                { "name": "ATG Incline Press", "sets": 2, "reps": "8-12", "targetWeight": null },
-                { "name": "Dips", "sets": 2, "reps": "8-15", "targetWeight": null }
+                { "name": "Dips", "sets": 2, "reps": "8-15", "targetWeight": null },
+                { "name": "ATG Incline Press", "sets": 2, "reps": "8-12", "targetWeight": null }
             ]
         },
         "accessories": [
-            { "name": "Lateral Raise", "sets": 2, "reps": "12-20", "targetWeight": null },
-            { "name": "Tricep Pushdown", "sets": 2, "reps": "10-15", "targetWeight": null }
+            { "name": "Lateral Raise", "sets": 2, "reps": "15-20", "targetWeight": null },
+            { "name": "Face Pull", "sets": 2, "reps": "12-15", "targetWeight": null },
+            { "name": "Tricep Pushdown", "sets": 2, "reps": "12-15", "targetWeight": null }
         ],
-        "shoulderHealth": [
-            { "name": "Face Pull", "sets": 2, "reps": "12-20", "targetWeight": null }
-        ],
+        "shoulderHealth": [],
         "extra": []
     },
     "3": {
-        "name": "Lower — Posterior Chain (60-min optimized)",
+        "name": "Lower — Posterior Chain",
         "warmup": [
             { "name": "Sled — Backwards", "sets": 1, "reps": "3 min", "targetWeight": null, "metric": "time" },
             { "name": "Elephant Walk", "sets": 1, "reps": "15 reps/side", "targetWeight": null },
@@ -86,9 +82,7 @@
         ],
         "accessories": [],
         "shoulderHealth": [],
-        "extra": [
-            { "name": "Couch Stretch", "sets": 1, "reps": "45 sec/side", "targetWeight": null, "metric": "time" }
-        ]
+        "extra": []
     },
     "4": {
         "name": "Upper Pull",
@@ -100,30 +94,23 @@
         ],
         "mainA": {
             "weekA": [
-                { "name": "Pull-Up", "sets": 4, "reps": "4-8", "targetWeight": null },
-                { "name": "Barbell Row", "sets": 4, "reps": "6-8", "targetWeight": null },
-                { "name": "Lat Pulldown", "sets": 3, "reps": "8-12", "targetWeight": null },
-                { "name": "Pullover", "sets": 3, "reps": "10", "targetWeight": 18.25 }
+                { "name": "Pull-Up", "sets": 3, "reps": "6-10", "targetWeight": null },
+                { "name": "Barbell Row", "sets": 3, "reps": "8-12", "targetWeight": null },
+                { "name": "Lat Pulldown", "sets": 2, "reps": "10-15", "targetWeight": null }
             ],
             "weekB": [
-                { "name": "Pull-Up", "sets": 4, "reps": "4-8", "targetWeight": null },
-                { "name": "Chest-Supported Row", "sets": 4, "reps": "6-8", "targetWeight": null },
-                { "name": "Seated Cable Row", "sets": 3, "reps": "10-12", "targetWeight": null },
-                { "name": "Pullover", "sets": 3, "reps": "10", "targetWeight": 18.25 }
+                { "name": "Pull-Up", "sets": 3, "reps": "6-10", "targetWeight": null },
+                { "name": "Chest-Supported Row", "sets": 3, "reps": "8-12", "targetWeight": null },
+                { "name": "Seated Cable Row", "sets": 2, "reps": "10-15", "targetWeight": null }
             ]
         },
         "accessories": [
-            { "name": "Face Pull", "sets": 3, "reps": "12-15", "targetWeight": null },
-            { "name": "Barbell/Dumbbell Curl", "sets": 3, "reps": "8-12", "targetWeight": null },
-            { "name": "External Rotation", "sets": 3, "reps": "8 each arm", "targetWeight": 7.25 },
-            { "name": "Trap 3 Raise", "sets": 3, "reps": "8", "targetWeight": null }
+            { "name": "Dumbbell Curl", "sets": 3, "reps": "10-12", "targetWeight": null },
+            { "name": "Face Pull", "sets": 2, "reps": "15", "targetWeight": null },
+            { "name": "Rear Delt Flye", "sets": 2, "reps": "15", "targetWeight": null }
         ],
         "shoulderHealth": [],
-        "extra": [
-            { "name": "Straight-Arm Pulldown", "sets": 2, "reps": "12-15", "targetWeight": null },
-            { "name": "Scott Curl", "sets": 2, "reps": "10-12", "targetWeight": null },
-            { "name": "Rear Delt Flye", "sets": 2, "reps": "15", "targetWeight": null }
-        ]
+        "extra": []
     },
     "5": {
         "name": "Arms, Shoulders & Mobility",
@@ -135,36 +122,29 @@
         ],
         "mainA": {
             "weekA": [
-                { "name": "Seated Dumbbell Press", "sets": 3, "reps": "8-10", "targetWeight": null },
-                { "name": "Lateral Raise", "sets": 3, "reps": "12-15", "targetWeight": null },
-                { "name": "Rear Delt Flye", "sets": 3, "reps": "12-15", "targetWeight": null }
+                { "name": "Seated Dumbbell Press", "sets": 3, "reps": "8-12", "targetWeight": null },
+                { "name": "Lateral Raise", "sets": 2, "reps": "15-20", "targetWeight": null },
+                { "name": "Rear Delt Flye", "sets": 2, "reps": "15", "targetWeight": null }
             ],
             "weekB": [
                 { "name": "ATG Shoulder Press DB", "sets": 3, "reps": "10", "targetWeight": 18.25 },
-                { "name": "Lateral Raise", "sets": 3, "reps": "12-15", "targetWeight": null },
-                { "name": "Face Pull", "sets": 3, "reps": "12-15", "targetWeight": null }
+                { "name": "Lateral Raise", "sets": 2, "reps": "15-20", "targetWeight": null },
+                { "name": "Face Pull", "sets": 2, "reps": "15", "targetWeight": null }
             ]
         },
         "accessories": [
-            { "name": "Scott Curl (preacher)", "sets": 3, "reps": "10", "targetWeight": null },
-            { "name": "French Press", "sets": 3, "reps": "10", "targetWeight": null },
-            { "name": "Tricep Pushdown (rope)", "sets": 3, "reps": "12-15", "targetWeight": null }
+            { "name": "Scott Curl (preacher)", "sets": 3, "reps": "10-12", "targetWeight": null },
+            { "name": "French Press", "sets": 2, "reps": "12", "targetWeight": null },
+            { "name": "Tricep Pushdown (rope)", "sets": 2, "reps": "15", "targetWeight": null }
         ],
         "shoulderHealth": [
             { "name": "Powell Raise", "sets": 2, "reps": "10 each side", "targetWeight": 7.25 },
             { "name": "External Rotation", "sets": 2, "reps": "12 each arm", "targetWeight": 7.25 }
         ],
         "neck": [
-            { "name": "Neck Flexion", "sets": 3, "reps": "10", "targetWeight": 7.25 }
+            { "name": "Neck Flexion", "sets": 2, "reps": "10", "targetWeight": 7.25 }
         ],
-        "flexibility": [
-            { "name": "Jefferson Curl", "sets": 2, "reps": "10", "targetWeight": 14.5 },
-            { "name": "Butterfly (weighted)", "sets": 3, "reps": "20", "targetWeight": 8.75 },
-            { "name": "Standing Pancake Pulse", "sets": 3, "reps": "20", "targetWeight": null }
-        ],
-        "extra": [
-            { "name": "Close-Grip Bench/Dips", "sets": 2, "reps": "8-12", "targetWeight": null },
-            { "name": "Pigeon Push-Up", "sets": 2, "reps": "15", "targetWeight": null }
-        ]
+        "flexibility": [],
+        "extra": []
     }
 }
