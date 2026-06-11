@@ -364,7 +364,7 @@ function nextCycle() {
         st.currentCycle++;
         st.currentDay = 1;
         st.currentWeek = 'A';
-    });
+    }, { skipSync: true });
 }
 
 // ── Components ───────────────────────────────────────────────
@@ -385,20 +385,22 @@ function Header() {
 }
 
 function RestTimerChip() {
+    const startedAt = appState.value.restTimerStartedAt;
+
     useEffect(() => {
+        if (!startedAt) return;
+        nowTick.value = Date.now();
         const id = setInterval(() => {
             nowTick.value = Date.now();
         }, 1000);
         return () => clearInterval(id);
-    }, []);
+    }, [startedAt]);
 
     const stopRest = useCallback(() => {
         mutateState(st => {
             st.restTimerStartedAt = null;
         }, { skipSync: true });
     }, []);
-
-    const startedAt = appState.value.restTimerStartedAt;
     const elapsed = startedAt ? Math.max(0, Math.floor((nowTick.value - startedAt) / 1000)) : 0;
     const mins = Math.floor(elapsed / 60);
     const secs = elapsed % 60;
@@ -414,7 +416,7 @@ function RestTimerChip() {
 
 function WeekToggle() {
     const st = appState.value;
-    const setWeek = (week) => mutateState(s => { s.currentWeek = week; });
+    const setWeek = (week) => mutateState(s => { s.currentWeek = week; }, { skipSync: true });
 
     return html`
         <div class="week-toggle">
@@ -438,7 +440,7 @@ function DayNav() {
                 const isActive = st.currentDay === day;
                 return html`
                     <button class="day-btn ${isActive ? 'active' : ''} ${isCompleted ? 'completed' : ''}"
-                            onClick=${() => mutateState(s => { s.currentDay = day; })}
+                            onClick=${() => mutateState(s => { s.currentDay = day; }, { skipSync: true })}
                             key=${day}>
                         ${name}
                     </button>
@@ -572,6 +574,15 @@ function History() {
     const history = getAllHistory(appState.value);
     const entries = Object.entries(history);
     if (entries.length === 0) return null;
+
+    // Most recently trained exercises first (by their latest logged session).
+    const latest = ([, logs]) => logs[logs.length - 1];
+    entries.sort((a, b) => {
+        const la = latest(a), lb = latest(b);
+        if (la.cycle !== lb.cycle) return lb.cycle - la.cycle;
+        if (la.week !== lb.week) return la.week === 'B' ? -1 : 1;
+        return (lb.day || 0) - (la.day || 0);
+    });
 
     return html`
         <div class="history-section">

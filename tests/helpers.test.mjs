@@ -139,9 +139,9 @@ test('getLastExerciseNote skips the current session note', () => {
     assert.equal(getLastExerciseNote(state, 'Back Squat'), 'belt on');
 });
 
-test('getAllHistory collects done sets with week labels from keys', () => {
+test('getAllHistory collects done sets with session labels from keys', () => {
     const history = getAllHistory(state);
-    assert.deepEqual(history['Front Squat'], [{ cycle: 1, week: 'B', weight: 50, reps: '10' }]);
+    assert.deepEqual(history['Front Squat'], [{ cycle: 1, week: 'B', day: 1, weight: 50, reps: '10' }]);
     assert.equal(history['Back Squat'].length, 2);
 });
 

@@ -113,7 +113,7 @@ export function getAllHistory(state) {
     const logs = state.exerciseLogs || {};
     for (const [cycle, cycleData] of Object.entries(logs)) {
         for (const [week, weekData] of Object.entries(cycleData)) {
-            for (const dayData of Object.values(weekData)) {
+            for (const [day, dayData] of Object.entries(weekData)) {
                 for (const [exName, exLogs] of Object.entries(dayData)) {
                     for (const log of exLogs) {
                         if (log.done && hasWeightLogged(log)) {
@@ -121,6 +121,7 @@ export function getAllHistory(state) {
                             history[exName].push({
                                 cycle: parseInt(cycle),
                                 week,
+                                day: parseInt(day),
                                 weight: log.weight,
                                 reps: log.reps
                             });
