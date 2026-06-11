@@ -40,66 +40,98 @@
 
         /* Header */
         .header {
-            background: var(--card);
-            padding: 12px 16px;
+            background: rgba(28, 28, 30, 0.92);
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+            padding: 10px 16px;
             border-bottom: 1px solid var(--divider);
             display: flex;
             justify-content: space-between;
             align-items: center;
+            gap: 12px;
             position: sticky;
             top: 0;
             z-index: 100;
         }
         .header-title {
+            flex: 1;
+            min-width: 0;
             font-size: 1.25rem;
             font-weight: 700;
             letter-spacing: -0.02em;
+        }
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-shrink: 0;
         }
         .finish-btn {
             background: linear-gradient(135deg, var(--success) 0%, #28a745 100%);
             color: white;
             border: none;
-            padding: 10px 24px;
-            border-radius: 20px;
+            padding: 10px 18px;
+            min-height: 40px;
+            border-radius: 999px;
             font-size: 0.875rem;
-            font-weight: 600;
+            font-weight: 700;
             cursor: pointer;
-            transition: all 0.3s ease;
+            transition: all 0.2s ease;
+            box-shadow: 0 6px 18px rgba(48, 209, 88, 0.18);
         }
         .finish-btn:hover {
             transform: translateY(-1px);
-            box-shadow: 0 4px 12px var(--success-glow);
+            box-shadow: 0 8px 22px var(--success-glow);
+        }
+        .finish-btn:disabled {
+            opacity: 0.7;
+            cursor: default;
+            transform: none;
         }
 
-        /* Timer Bar */
-        .timer-bar {
-            background: var(--card);
-            padding: 10px 16px;
-            border-bottom: 1px solid var(--divider);
+        /* Rest timer attached to sticky finish action */
+        .rest-chip {
+            min-height: 40px;
+            padding: 6px 10px;
+            border: 1px solid var(--divider);
+            border-radius: 999px;
+            background: rgba(44, 44, 46, 0.78);
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
         }
-        .timer-display {
-            font-variant-numeric: tabular-nums;
-            font-size: 1.5rem;
+        .rest-chip.inactive { opacity: 0.58; }
+        .rest-label {
+            font-size: 0.62rem;
             font-weight: 700;
-            min-width: 70px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
         }
-        .timer-btn {
-            background: var(--card);
-            border: 1px solid var(--divider);
-            padding: 8px 14px;
-            border-radius: 8px;
-            font-size: 0.75rem;
-            font-weight: 600;
-            cursor: pointer;
+        .rest-time {
+            min-width: 42px;
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+            font-size: 1rem;
+            line-height: 1;
+            font-weight: 800;
+            color: var(--text);
+        }
+        .rest-reset {
+            width: 18px;
+            height: 18px;
+            border: none;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.08);
             color: var(--text-secondary);
-            transition: all 0.2s ease;
+            font-size: 0.8rem;
+            line-height: 18px;
+            cursor: pointer;
         }
-        .timer-btn:hover {
-            border-color: var(--accent);
-            color: var(--accent);
+        .rest-reset:hover {
+            background: rgba(255,255,255,0.14);
+            color: var(--text);
         }
 
         /* Week Toggle */
@@ -632,7 +664,8 @@
             dayCompletion: {},
             exerciseLogs: {},
             dayNotes: {},
-            exerciseNotes: {}
+            exerciseNotes: {},
+            restTimerStartedAt: null
         };
 
         function sanitizeState(raw = {}) {
@@ -650,6 +683,7 @@
             st.exerciseLogs = (st.exerciseLogs && typeof st.exerciseLogs === 'object') ? st.exerciseLogs : {};
             st.dayNotes = (st.dayNotes && typeof st.dayNotes === 'object') ? st.dayNotes : {};
             st.exerciseNotes = (st.exerciseNotes && typeof st.exerciseNotes === 'object') ? st.exerciseNotes : {};
+            st.restTimerStartedAt = Number.isFinite(Number(st.restTimerStartedAt)) ? Number(st.restTimerStartedAt) : null;
 
             return st;
         }
@@ -665,9 +699,8 @@
         }
 
         const appState = signal(loadState());
-        const timerRemaining = signal(0);
+        const nowTick = signal(Date.now());
         const programData = signal(null);
-        const historyCache = signal(null);
         const isFinishing = signal(false);
         const finishError = signal(null);
 
@@ -675,7 +708,6 @@
 
         function persistAndSync(options = {}) {
             const { skipSync = false } = options;
-            historyCache.value = null;
             localStorage.setItem('clawgains_state', JSON.stringify(appState.value));
             if (!skipSync) debouncedSync();
         }
@@ -749,7 +781,7 @@
                     note: exNote,
                     sets: sets.map((s, i) => ({
                         set_num: i + 1,
-                        weight: s.weight || null,
+                        weight: s.weight ?? null,
                         reps: s.reps || null,
                         done: !!s.done
                     }))
@@ -766,15 +798,24 @@
             };
         }
 
+        let inFlightSync = null;
         async function syncWorkoutToServer(target, completedAtOverride = undefined) {
-            const payload = buildWorkoutPayload(target, completedAtOverride);
-            const resp = await fetch('/api/workout', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-            if (!resp.ok) {
-                throw new Error(`Workout sync failed: ${resp.status}`);
+            if (inFlightSync) inFlightSync.abort();
+            const ctrl = new AbortController();
+            inFlightSync = ctrl;
+            try {
+                const payload = buildWorkoutPayload(target, completedAtOverride);
+                const resp = await fetch('/api/workout', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                    signal: ctrl.signal
+                });
+                if (!resp.ok) {
+                    throw new Error(`Workout sync failed: ${resp.status}`);
+                }
+            } finally {
+                if (inFlightSync === ctrl) inFlightSync = null;
             }
         }
 
@@ -787,7 +828,9 @@
                 week: st.currentWeek,
                 day: st.currentDay
             };
-            syncWorkoutToServer(target).catch(() => {});
+            syncWorkoutToServer(target).catch((err) => {
+                if (err?.name === 'AbortError') return;
+            });
         }
 
         // ── Audio ────────────────────────────────────────────────────
@@ -819,13 +862,13 @@
 
         // ── History helpers ──────────────────────────────────────────
 
-        function hasNonZeroWeight(log) {
-            const weight = Number(log?.weight);
-            return Number.isFinite(weight) && weight !== 0;
+        function hasWeightLogged(log) {
+            const w = log?.weight;
+            if (w === null || w === undefined) return false;
+            return Number.isFinite(Number(w));
         }
 
         function getAllHistory() {
-            if (historyCache.value) return historyCache.value;
             const history = {};
             const logs = appState.value.exerciseLogs || {};
             for (const [cycle, cycleData] of Object.entries(logs)) {
@@ -833,7 +876,7 @@
                     for (const [day, dayData] of Object.entries(weekData)) {
                         for (const [exName, exLogs] of Object.entries(dayData)) {
                             for (const log of exLogs) {
-                                if (log.done && hasNonZeroWeight(log)) {
+                                if (log.done && hasWeightLogged(log)) {
                                     if (!history[exName]) history[exName] = [];
                                     history[exName].push({
                                         cycle: parseInt(cycle),
@@ -847,7 +890,6 @@
                     }
                 }
             }
-            historyCache.value = history;
             return history;
         }
 
@@ -861,7 +903,7 @@
                     for (const [d, dayData] of Object.entries(weekData)) {
                         if (+c === currentCycle && w === currentWeek && +d === currentDay) continue;
                         const exLogs = dayData[exerciseName];
-                        if (exLogs && exLogs.some(log => log.done && hasNonZeroWeight(log))) {
+                        if (exLogs && exLogs.some(log => log.done && hasWeightLogged(log))) {
                             sessions.push({ cycle: +c, week: w, day: +d, sets: exLogs });
                         }
                     }
@@ -926,42 +968,54 @@
             const repsInput = row.querySelector('.reps-input');
             const rawWeight = kgInput?.value?.trim() || '';
             const rawReps = repsInput?.value?.trim() || '';
+            const userTypedWeight = rawWeight !== '';
+            const userTypedReps = rawReps !== '';
 
             // Compute ghost fallback from state (previous completed set or last workout)
-            let ghostWeight = 0, ghostReps = '';
-            if (rawWeight === '' || rawReps === '') {
+            let ghostWeight = null, ghostReps = '';
+            if (!userTypedWeight || !userTypedReps) {
                 const st = appState.value;
                 const dayLogs = st.exerciseLogs[st.currentCycle]?.[st.currentWeek]?.[st.currentDay]?.[exerciseName] || [];
                 for (let i = setNum - 2; i >= 0; i--) {
                     const prev = dayLogs[i];
-                    if (prev && (hasNonZeroWeight(prev) || prev.reps || prev.done)) {
-                        ghostWeight = prev.weight || 0;
+                    if (prev && (hasWeightLogged(prev) || prev.reps || prev.done)) {
+                        ghostWeight = prev.weight ?? null;
                         ghostReps = prev.reps || '';
                         break;
                     }
                 }
-                if (ghostWeight === 0 && ghostReps === '') {
+                if (ghostWeight === null && ghostReps === '') {
                     const prevSets = getPreviousWorkoutSets(exerciseName);
                     const prevSet = prevSets?.[setNum - 1];
-                    const fallback = (prevSet && hasNonZeroWeight(prevSet)) ? prevSet : prevSets?.find(s => s && hasNonZeroWeight(s));
-                    if (fallback) { ghostWeight = fallback.weight || 0; ghostReps = fallback.reps || ''; }
+                    const lastDone = prevSets ? [...prevSets].reverse().find(s => s && s.done && hasWeightLogged(s)) : null;
+                    const fallback = (prevSet && hasWeightLogged(prevSet)) ? prevSet : lastDone;
+                    if (fallback) { ghostWeight = fallback.weight ?? null; ghostReps = fallback.reps || ''; }
                 }
             }
 
-            const weight = rawWeight !== '' ? (parseFloat(rawWeight) || 0) : ghostWeight;
-            const reps = rawReps !== '' ? rawReps : ghostReps;
+            const parsedWeight = parseFloat(rawWeight);
+            const weight = userTypedWeight ? (Number.isFinite(parsedWeight) ? parsedWeight : null) : ghostWeight;
+            const reps = userTypedReps ? rawReps : ghostReps;
 
             mutateState(st => {
                 const dayLogs = getExerciseLogs(st, true);
                 if (!dayLogs[exerciseName]) dayLogs[exerciseName] = [];
                 while (dayLogs[exerciseName].length < setNum) {
-                    dayLogs[exerciseName].push({ weight: 0, reps: '', done: false });
+                    dayLogs[exerciseName].push({ weight: null, reps: '', done: false });
                 }
                 const log = dayLogs[exerciseName][setNum - 1];
                 if (log.done) {
                     log.done = false;
+                    if (log.imputedWeight) { log.weight = null; log.imputedWeight = false; }
+                    if (log.imputedReps) { log.reps = ''; log.imputedReps = false; }
                 } else {
-                    Object.assign(log, { weight, reps, done: true, cycle: st.currentCycle, week: st.currentWeek });
+                    Object.assign(log, {
+                        weight, reps, done: true,
+                        imputedWeight: !userTypedWeight,
+                        imputedReps: !userTypedReps,
+                        cycle: st.currentCycle, week: st.currentWeek
+                    });
+                    st.restTimerStartedAt = Date.now();
                 }
             });
         }
@@ -971,9 +1025,12 @@
                 const dayLogs = getExerciseLogs(st, true);
                 if (!dayLogs[exerciseName]) dayLogs[exerciseName] = [];
                 while (dayLogs[exerciseName].length < setNum) {
-                    dayLogs[exerciseName].push({ weight: 0, reps: '', done: false });
+                    dayLogs[exerciseName].push({ weight: null, reps: '', done: false });
                 }
-                dayLogs[exerciseName][setNum - 1].weight = parseFloat(value) || 0;
+                const parsed = parseFloat(value);
+                const log = dayLogs[exerciseName][setNum - 1];
+                log.weight = Number.isFinite(parsed) ? parsed : null;
+                log.imputedWeight = false;
             });
         }
 
@@ -982,9 +1039,11 @@
                 const dayLogs = getExerciseLogs(st, true);
                 if (!dayLogs[exerciseName]) dayLogs[exerciseName] = [];
                 while (dayLogs[exerciseName].length < setNum) {
-                    dayLogs[exerciseName].push({ weight: 0, reps: '', done: false });
+                    dayLogs[exerciseName].push({ weight: null, reps: '', done: false });
                 }
-                dayLogs[exerciseName][setNum - 1].reps = value;
+                const log = dayLogs[exerciseName][setNum - 1];
+                log.reps = value;
+                log.imputedReps = false;
             });
         }
 
@@ -1015,7 +1074,7 @@
             mutateState(st => {
                 const dayLogs = getExerciseLogs(st, true);
                 if (!dayLogs[exerciseName]) dayLogs[exerciseName] = [];
-                dayLogs[exerciseName].push({ weight: 0, reps: '', done: false });
+                dayLogs[exerciseName].push({ weight: null, reps: '', done: false });
             });
         }
 
@@ -1042,6 +1101,14 @@
             const wasComplete = st.dayCompletion[target.cycle]?.[target.week]?.[target.day];
             const completedAt = new Date().toISOString();
 
+            if (!wasComplete) {
+                const dayLogs = st.exerciseLogs[target.cycle]?.[target.week]?.[target.day] || {};
+                const totalDone = Object.values(dayLogs).reduce((n, sets) => n + sets.filter(s => s.done).length, 0);
+                if (totalDone === 0 && !confirm('No sets logged for today. Mark this day complete anyway?')) {
+                    return;
+                }
+            }
+
             finishError.value = null;
             isFinishing.value = true;
 
@@ -1050,6 +1117,7 @@
                 if (!s.dayCompletion[target.cycle]) s.dayCompletion[target.cycle] = {};
                 if (!s.dayCompletion[target.cycle][target.week]) s.dayCompletion[target.cycle][target.week] = {};
                 s.dayCompletion[target.cycle][target.week][target.day] = true;
+                s.restTimerStartedAt = null;
             }, { skipSync: true });
 
             try {
@@ -1069,6 +1137,7 @@
 
                 alert('Workout saved! Great job!');
             } catch (err) {
+                if (err?.name === 'AbortError') return;
                 finishError.value = 'Saved locally, but sync to server failed. Retry Finish.';
                 alert('Saved locally, but sync failed. Please tap Finish again.');
             } finally {
@@ -1094,51 +1163,41 @@
             return html`
                 <div class="header">
                     <span class="header-title">Claw Gains</span>
-                    <button class="finish-btn" disabled=${isFinishing.value} onClick=${finishWorkout}>
-                        ${isFinishing.value ? 'Saving…' : 'Finish'}
-                    </button>
+                    <div class="header-actions">
+                        <${RestTimerChip} />
+                        <button class="finish-btn" disabled=${isFinishing.value} onClick=${finishWorkout}>
+                            ${isFinishing.value ? 'Saving…' : 'Finish'}
+                        </button>
+                    </div>
                 </div>
                 ${finishError.value ? html`<div style="margin: 8px 16px; color: #ff8a8a; font-size: 0.8rem;">${finishError.value}</div>` : null}
             `;
         }
 
-        function TimerBar() {
-            const intervalRef = useRef(null);
-
-            const startRest = useCallback((seconds) => {
-                stopRest();
-                timerRemaining.value = seconds;
-                intervalRef.current = setInterval(() => {
-                    timerRemaining.value--;
-                    if (timerRemaining.value <= 0) {
-                        playTimerBeep();
-                        stopRest();
-                    }
+        function RestTimerChip() {
+            useEffect(() => {
+                const id = setInterval(() => {
+                    nowTick.value = Date.now();
                 }, 1000);
+                return () => clearInterval(id);
             }, []);
 
             const stopRest = useCallback(() => {
-                if (intervalRef.current) {
-                    clearInterval(intervalRef.current);
-                    intervalRef.current = null;
-                }
-                timerRemaining.value = 0;
+                mutateState(st => {
+                    st.restTimerStartedAt = null;
+                }, { skipSync: true });
             }, []);
 
-            useEffect(() => () => { if (intervalRef.current) clearInterval(intervalRef.current); }, []);
-
-            const remaining = timerRemaining.value;
-            const mins = Math.floor(remaining / 60);
-            const secs = remaining % 60;
+            const startedAt = appState.value.restTimerStartedAt;
+            const elapsed = startedAt ? Math.max(0, Math.floor((nowTick.value - startedAt) / 1000)) : 0;
+            const mins = Math.floor(elapsed / 60);
+            const secs = elapsed % 60;
             const display = `${mins}:${secs.toString().padStart(2, '0')}`;
-
             return html`
-                <div class="timer-bar">
-                    <span class="timer-display">${display}</span>
-                    <button class="timer-btn" onClick=${() => startRest(60)}>60s</button>
-                    <button class="timer-btn" onClick=${() => startRest(90)}>90s</button>
-                    <button class="timer-btn" onClick=${() => startRest(120)}>2m</button>
-                    <button class="timer-btn" onClick=${stopRest}>Stop</button>
+                <div class=${`rest-chip ${startedAt ? '' : 'inactive'}`}>
+                    <span class="rest-label">Rest</span>
+                    <span class="rest-time">${display}</span>
+                    ${startedAt ? html`<button class="rest-reset" title="Reset rest timer" onClick=${stopRest}>×</button>` : null}
                 </div>
             `;
         }
@@ -1181,42 +1240,43 @@
 
         function SetRow({ exerciseName, set, isExtra, exLogs, prevSets, ex }) {
             const logData = exLogs[set - 1];
-            const hasRealData = hasNonZeroWeight(logData) || logData?.reps || logData?.done;
+            const hasRealWeight = hasWeightLogged(logData);
+            const hasRealReps = !!logData?.reps;
+            const isTimeMetric = ex?.metric === 'time';
 
             function getGhostForSet(setIndex) {
                 for (let i = setIndex - 1; i >= 0; i--) {
                     const prev = exLogs[i];
-                    if (prev && (hasNonZeroWeight(prev) || prev.reps || prev.done)) {
-                        return { weight: prev.weight || '', reps: prev.reps || '' };
+                    if (prev && (hasWeightLogged(prev) || prev.reps || prev.done)) {
+                        return { weight: prev.weight ?? '', reps: prev.reps || '' };
                     }
                 }
                 if (prevSets) {
                     const matchingPrev = prevSets[setIndex];
-                    if (matchingPrev && hasNonZeroWeight(matchingPrev)) return { weight: matchingPrev.weight || '', reps: matchingPrev.reps || '' };
-                    const anyPrev = prevSets.find(s => s && hasNonZeroWeight(s));
-                    if (anyPrev) return { weight: anyPrev.weight || '', reps: anyPrev.reps || '' };
+                    if (matchingPrev && hasWeightLogged(matchingPrev)) return { weight: matchingPrev.weight ?? '', reps: matchingPrev.reps || '' };
+                    const lastDone = [...prevSets].reverse().find(s => s && s.done && hasWeightLogged(s));
+                    if (lastDone) return { weight: lastDone.weight ?? '', reps: lastDone.reps || '' };
                 }
                 return null;
             }
 
             const ghost = getGhostForSet(set - 1);
-            let weight, reps, done, ghostWeight, ghostReps;
-            if (hasRealData) {
-                weight = logData.weight || '';
-                reps = logData.reps || '';
-                done = logData.done || false;
-                ghostWeight = '';
-                ghostReps = '';
-            } else {
-                weight = '';
-                reps = '';
-                done = false;
-                ghostWeight = ghost ? ghost.weight : '';
-                ghostReps = ghost ? ghost.reps : '';
-            }
+            const weight = hasRealWeight ? logData.weight : '';
+            const reps = hasRealReps ? logData.reps : '';
+            const done = !!logData?.done;
+            const ghostWeight = hasRealWeight ? '' : (ghost ? ghost.weight : '');
+            const ghostReps = hasRealReps ? '' : (ghost ? ghost.reps : '');
 
             const prevSetData = prevSets ? prevSets[set - 1] : null;
-            const prevDisplay = (prevSetData && prevSetData.done && hasNonZeroWeight(prevSetData)) ? `${prevSetData.weight}×${prevSetData.reps}` : '';
+            const prevDisplay = (prevSetData && prevSetData.done && hasWeightLogged(prevSetData)) ? `${prevSetData.weight}×${prevSetData.reps}` : '';
+
+            const weightPlaceholder = ghostWeight !== '' ? String(ghostWeight) : '—';
+            const repsPlaceholder = ghostReps !== '' ? String(ghostReps) : '—';
+
+            const onRepsChange = (e) => {
+                const v = isTimeMetric ? e.target.value : e.target.value.replace(/[^0-9]/g, '');
+                updateReps(exerciseName, set, v);
+            };
 
             return html`
                 <tr>
@@ -1224,10 +1284,12 @@
                     <td class="prev-val">${prevDisplay}</td>
                     <td><input type="number" class="kg-input" value=${weight}
                         onChange=${(e) => updateWeight(exerciseName, set, e.target.value)}
-                        placeholder=${ghostWeight || '0'} step="1" /></td>
+                        placeholder=${weightPlaceholder} step="1" /></td>
                     <td><input type="text" class="reps-input" value=${reps}
-                        onChange=${(e) => updateReps(exerciseName, set, e.target.value)}
-                        placeholder=${ghostReps || '0'} /></td>
+                        inputmode=${isTimeMetric ? 'text' : 'numeric'}
+                        pattern=${isTimeMetric ? null : '[0-9]*'}
+                        onInput=${onRepsChange}
+                        placeholder=${repsPlaceholder} /></td>
                     <td>${isExtra ? html`<button class="remove-set-btn" onClick=${() => removeSet(exerciseName, set)}>✕</button>` : ''}</td>
                     <td class="check-col">
                         <div class="check-btn ${done ? 'checked' : ''}"
@@ -1396,7 +1458,6 @@
         function App() {
             return html`
                 <${Header} />
-                <${TimerBar} />
                 <div id="mainView">
                     <${WeekToggle} />
                     <${DayNav} />
