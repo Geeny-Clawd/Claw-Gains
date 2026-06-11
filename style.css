@@ -126,6 +126,23 @@ body {
     background: rgba(255,255,255,0.14);
     color: var(--text);
 }
+.rest-target {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+.rest-chip.ready {
+    border-color: var(--success);
+    background: rgba(48, 209, 88, 0.14);
+    animation: restPulse 1.2s ease-in-out 3;
+}
+.rest-chip.ready .rest-label,
+.rest-chip.ready .rest-time { color: var(--success); }
+.rest-chip.ready .rest-target { color: rgba(48, 209, 88, 0.6); }
+@keyframes restPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(48, 209, 88, 0); }
+    50% { box-shadow: 0 0 0 6px rgba(48, 209, 88, 0.25); }
+}
 
 /* Week Toggle */
 .week-toggle {

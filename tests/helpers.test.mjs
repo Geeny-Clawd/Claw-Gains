@@ -12,6 +12,7 @@ import {
     getSectionForExercise,
     getMainExercisesForWeek,
     buildWorkoutPayload,
+    getRestTargetSeconds,
 } from '../helpers.js';
 
 const program = {
@@ -53,6 +54,14 @@ test('sanitizeState replaces non-object collections', () => {
     assert.deepEqual(st.dayCompletion, {});
     assert.deepEqual(st.exerciseLogs, {});
     assert.equal(st.restTimerStartedAt, null);
+});
+
+test('sanitizeState keeps valid rest targets and nulls bad ones', () => {
+    assert.equal(sanitizeState({ restTimerTarget: 150 }).restTimerTarget, 150);
+    assert.equal(sanitizeState({ restTimerTarget: '90' }).restTimerTarget, 90);
+    assert.equal(sanitizeState({ restTimerTarget: -5 }).restTimerTarget, null);
+    assert.equal(sanitizeState({ restTimerTarget: 'long' }).restTimerTarget, null);
+    assert.equal(sanitizeState({}).restTimerTarget, null); // legacy state
 });
 
 // ── weight handling ──────────────────────────────────────────
@@ -155,6 +164,15 @@ test('getSectionForExercise finds week-dependent main work', () => {
 
 test('getSectionForExercise falls back to unknown instead of throwing', () => {
     assert.equal(getSectionForExercise(program, 'A', 1, 'Renamed Exercise'), 'unknown');
+});
+
+test('getRestTargetSeconds maps sections to program rest guidance', () => {
+    assert.equal(getRestTargetSeconds('mainA'), 150);      // compounds: 2–3 min
+    assert.equal(getRestTargetSeconds('accessories'), 90); // accessories: 60–90 s
+    assert.equal(getRestTargetSeconds('prehab'), 90);
+    assert.equal(getRestTargetSeconds('warmup'), 60);
+    assert.equal(getRestTargetSeconds('flexibility'), 60);
+    assert.equal(getRestTargetSeconds('unknown'), 90);     // safe default
 });
 
 test('getMainExercisesForWeek validates week and day shape', () => {

@@ -9,7 +9,8 @@ export const defaultState = {
     exerciseLogs: {},
     dayNotes: {},
     exerciseNotes: {},
-    restTimerStartedAt: null
+    restTimerStartedAt: null,
+    restTimerTarget: null
 };
 
 export function sanitizeState(raw = {}) {
@@ -30,8 +31,22 @@ export function sanitizeState(raw = {}) {
     st.exerciseNotes = (st.exerciseNotes && typeof st.exerciseNotes === 'object') ? st.exerciseNotes : {};
     const restAt = Number(st.restTimerStartedAt);
     st.restTimerStartedAt = Number.isFinite(restAt) && restAt > 0 ? restAt : null;
+    const restTarget = Number(st.restTimerTarget);
+    st.restTimerTarget = Number.isFinite(restTarget) && restTarget > 0 ? Math.floor(restTarget) : null;
 
     return st;
+}
+
+// Rest targets (seconds) by program guidance: compounds 2–3 min (use the
+// midpoint), accessories/prehab 60–90 s (use the top), warm-up and
+// stretching just need a breather. The chip signals when the target is hit.
+export function getRestTargetSeconds(section) {
+    switch (section) {
+        case 'mainA': return 150;
+        case 'warmup':
+        case 'flexibility': return 60;
+        default: return 90;
+    }
 }
 
 export function invariant(condition, message) {

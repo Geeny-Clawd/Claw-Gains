@@ -4,6 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Claw Gains - Strength Tracker</title>
+    <meta name="theme-color" content="#0a0a0a">
+    <link rel="manifest" href="/manifest.json">
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="apple-mobile-web-app-title" content="Claw Gains">
     <link rel="stylesheet" href="/style.css">
 </head>
 <body>
@@ -47,5 +54,15 @@
     </script>
 
     <script type="module" src="/app.js"></script>
+
+    <script>
+        // Offline support. Requires a secure context (HTTPS or localhost);
+        // on plain http this rejects and the app behaves exactly as before.
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js').catch(() => {});
+            });
+        }
+    </script>
 </body>
 </html>

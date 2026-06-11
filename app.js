@@ -10,6 +10,8 @@ import {
     getPreviousWorkoutSets,
     getLastExerciseNote,
     buildWorkoutPayload,
+    getSectionForExercise,
+    getRestTargetSeconds,
 } from './helpers.js';
 
 const html = htm.bind(h);
@@ -209,6 +211,39 @@ function ensureSetLog(st, exerciseName, setNum) {
     return sets;
 }
 
+// ── Rest-done notification ───────────────────────────────────
+
+// iOS only allows audio after a user gesture, so the context is created and
+// resumed inside toggleSet (the tap) and merely played later by the timer.
+let audioCtx = null;
+function ensureAudioReady() {
+    try {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (!audioCtx && AC) audioCtx = new AC();
+        if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume().catch(() => {});
+    } catch { /* no audio is fine; the chip still turns green */ }
+}
+
+function notifyRestDone() {
+    try { navigator.vibrate?.(200); } catch { /* unsupported (iOS) */ }
+    try {
+        if (!audioCtx || audioCtx.state !== 'running') return;
+        for (const offset of [0, 0.22]) {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            const t = audioCtx.currentTime + offset;
+            osc.type = 'sine';
+            osc.frequency.value = 880;
+            gain.gain.setValueAtTime(0.0001, t);
+            gain.gain.exponentialRampToValueAtTime(0.18, t + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.15);
+            osc.connect(gain).connect(audioCtx.destination);
+            osc.start(t);
+            osc.stop(t + 0.16);
+        }
+    } catch { /* never let a beep break logging */ }
+}
+
 // ── Actions ──────────────────────────────────────────────────
 
 function toggleSet(exerciseName, setNum) {
@@ -220,6 +255,15 @@ function toggleSet(exerciseName, setNum) {
     const ghost = (!hasWeight || !hasReps)
         ? getGhostForSet(exLogs, setNum - 1, getPreviousWorkoutSets(st, exerciseName))
         : null;
+
+    let restTarget;
+    try {
+        restTarget = getRestTargetSeconds(
+            getSectionForExercise(programData.value, st.currentWeek, st.currentDay, exerciseName));
+    } catch {
+        restTarget = getRestTargetSeconds('unknown');
+    }
+    if (!current?.done) ensureAudioReady();
 
     mutateState(s => {
         const sets = ensureSetLog(s, exerciseName, setNum);
@@ -235,6 +279,7 @@ function toggleSet(exerciseName, setNum) {
             log.imputedWeight = !hasWeight;
             log.imputedReps = !hasReps;
             s.restTimerStartedAt = Date.now();
+            s.restTimerTarget = restTarget;
         }
     });
 }
@@ -326,6 +371,7 @@ async function finishWorkout() {
         s.dayCompletion[target.cycle][target.week][target.day] =
             typeof wasComplete === 'string' ? wasComplete : completedAt;
         s.restTimerStartedAt = null;
+        s.restTimerTarget = null;
     }, { skipSync: true });
 
     try {
@@ -384,8 +430,19 @@ function Header() {
     `;
 }
 
+function fmtClock(totalSecs) {
+    const mins = Math.floor(totalSecs / 60);
+    const secs = totalSecs % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+}
+
+// Tracks which rest period already got its "go" beep, so re-renders,
+// day switches, or reloads can't replay it.
+let restNotifiedFor = null;
+
 function RestTimerChip() {
     const startedAt = appState.value.restTimerStartedAt;
+    const target = appState.value.restTimerTarget;
 
     useEffect(() => {
         if (!startedAt) return;
@@ -399,16 +456,26 @@ function RestTimerChip() {
     const stopRest = useCallback(() => {
         mutateState(st => {
             st.restTimerStartedAt = null;
+            st.restTimerTarget = null;
         }, { skipSync: true });
     }, []);
     const elapsed = startedAt ? Math.max(0, Math.floor((nowTick.value - startedAt) / 1000)) : 0;
-    const mins = Math.floor(elapsed / 60);
-    const secs = elapsed % 60;
-    const display = `${mins}:${secs.toString().padStart(2, '0')}`;
+    const ready = !!startedAt && !!target && elapsed >= target;
+
+    useEffect(() => {
+        if (!ready || restNotifiedFor === startedAt) return;
+        restNotifiedFor = startedAt;
+        // Only chime on a live crossing — not when a reload or tab return
+        // lands on an already-expired timer.
+        if (elapsed - target <= 2) notifyRestDone();
+    }, [ready, startedAt]);
+
     return html`
-        <div class=${`rest-chip ${startedAt ? '' : 'inactive'}`}>
-            <span class="rest-label">Rest</span>
-            <span class="rest-time">${display}</span>
+        <div class=${`rest-chip ${startedAt ? '' : 'inactive'} ${ready ? 'ready' : ''}`}>
+            <span class="rest-label">${ready ? 'Go' : 'Rest'}</span>
+            <span class="rest-time">
+                ${fmtClock(elapsed)}${startedAt && target ? html`<span class="rest-target">/${fmtClock(target)}</span>` : null}
+            </span>
             ${startedAt ? html`<button class="rest-reset" title="Reset rest timer" onClick=${stopRest}>×</button>` : null}
         </div>
     `;
