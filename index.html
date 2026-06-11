@@ -553,13 +553,12 @@
         window.__clawgainsBooted = false;
         window.__clawgainsBootTimer = setTimeout(() => {
             if (window.__clawgainsBooted) return;
-            const root = document.getElementById('app');
-            if (root) {
-                root.innerHTML = `
-                    <div style="padding:16px;color:#ff8a8a;font-family:system-ui">
-                        <div style="font-weight:600;margin-bottom:8px">Claw Gains failed to load</div>
-                        <div style="margin-bottom:8px">Please refresh once. If it keeps happening, the app resources may be blocked or stale.</div>
-                    </div>`;
+            // Write into the boot overlay: it sits on top of #app until boot succeeds.
+            const overlay = document.getElementById('bootFallback');
+            if (overlay) {
+                overlay.innerHTML = `
+                    <div style="font-weight:600;margin-bottom:8px">Claw Gains failed to load</div>
+                    <div style="margin-bottom:8px">Please refresh once. If it keeps happening, the app resources may be blocked or stale.</div>`;
             }
             try {
                 const payload = JSON.stringify({
@@ -629,6 +628,33 @@
             }).catch(() => {});
         }
 
+        // Before boot, an error means the app never came up: show the fatal screen.
+        // After boot, replacing the UI would kill an in-progress workout over a
+        // possibly harmless error, so just report it and show a dismissible toast.
+        function handleGlobalError(detail) {
+            if (!window.__clawgainsBooted) {
+                window.__clawgainsBooted = true;
+                if (window.__clawgainsBootTimer) clearTimeout(window.__clawgainsBootTimer);
+                renderFatal('Claw Gains failed to start. Please refresh.', detail);
+            } else {
+                showErrorToast();
+            }
+        }
+
+        function showErrorToast() {
+            let toast = document.getElementById('errorToast');
+            if (!toast) {
+                toast = document.createElement('div');
+                toast.id = 'errorToast';
+                toast.style.cssText = 'position:fixed;bottom:16px;left:16px;right:16px;z-index:300;padding:10px 14px;border-radius:10px;background:#3a1f1f;color:#ff8a8a;font-size:0.8rem;cursor:pointer;';
+                toast.textContent = 'Something went wrong (error logged). Your data is saved locally. Tap to dismiss.';
+                toast.addEventListener('click', () => toast.remove());
+                document.body.appendChild(toast);
+            }
+            clearTimeout(toast._hideTimer);
+            toast._hideTimer = setTimeout(() => toast.remove(), 8000);
+        }
+
         window.addEventListener('error', (evt) => {
             const detail = evt?.error?.stack || evt?.message || 'Unknown error';
             reportClientError('window.error', {
@@ -638,9 +664,7 @@
                 col: evt?.colno,
                 stack: evt?.error?.stack,
             });
-            window.__clawgainsBooted = true;
-            if (window.__clawgainsBootTimer) clearTimeout(window.__clawgainsBootTimer);
-            renderFatal('Unexpected runtime error. Please refresh.', detail);
+            handleGlobalError(detail);
         });
 
         window.addEventListener('unhandledrejection', (evt) => {
@@ -650,9 +674,7 @@
                 reason: typeof reason === 'string' ? reason : safeStringify(reason),
                 stack: reason?.stack,
             });
-            window.__clawgainsBooted = true;
-            if (window.__clawgainsBootTimer) clearTimeout(window.__clawgainsBootTimer);
-            renderFatal('Unhandled async error. Please refresh.', detail);
+            handleGlobalError(detail);
         });
 
         // ── Signals ──────────────────────────────────────────────────
@@ -718,10 +740,31 @@
             persistAndSync(options);
         }
 
+        // Days with local changes not yet confirmed by the server. Tracked per
+        // day so that switching days before the debounce fires can't drop the
+        // previous day's sync.
+        const dirtyTargets = new Map();
+
         let syncTimer = null;
         function debouncedSync() {
+            const st = appState.value;
+            const target = { cycle: st.currentCycle, week: st.currentWeek, day: st.currentDay };
+            dirtyTargets.set(`${target.cycle}|${target.week}|${target.day}`, target);
             clearTimeout(syncTimer);
-            syncTimer = setTimeout(syncToServer, 2000);
+            syncTimer = setTimeout(flushDirtyTargets, 2000);
+        }
+
+        async function flushDirtyTargets() {
+            if (!programData.value) return;
+            for (const [key, target] of [...dirtyTargets]) {
+                dirtyTargets.delete(key);
+                try {
+                    await syncWorkoutToServer(target);
+                } catch (err) {
+                    // Keep it dirty; the next mutation's debounce retries it.
+                    if (err?.name !== 'AbortError') dirtyTargets.set(key, target);
+                }
+            }
         }
 
         function invariant(condition, message) {
@@ -765,11 +808,12 @@
             throw new Error(`Exercise not found in program sections (day=${dayNum}, week=${week}): ${exerciseName}`);
         }
 
-        function buildWorkoutPayload(target, completedAtOverride = undefined) {
+        function buildWorkoutPayload(target) {
             const { cycle, week, day } = target;
             const st = appState.value;
             const logs = st.exerciseLogs[cycle]?.[week]?.[day] || {};
-            const isDone = st.dayCompletion[cycle]?.[week]?.[day];
+            // Completion is stored as an ISO timestamp (legacy data may have `true`).
+            const doneMark = st.dayCompletion[cycle]?.[week]?.[day];
             const dayNote = (st.dayNotes && st.dayNotes[cycle]?.[week]?.[day]) || null;
 
             const exercises = [];
@@ -781,7 +825,7 @@
                     note: exNote,
                     sets: sets.map((s, i) => ({
                         set_num: i + 1,
-                        weight: s.weight ?? null,
+                        weight: toWeightNumber(s.weight),
                         reps: s.reps || null,
                         done: !!s.done
                     }))
@@ -791,20 +835,20 @@
             return {
                 cycle, week, day,
                 day_note: dayNote,
-                completed_at: completedAtOverride !== undefined
-                    ? completedAtOverride
-                    : (isDone ? new Date().toISOString() : null),
+                completed_at: typeof doneMark === 'string'
+                    ? doneMark
+                    : (doneMark ? new Date().toISOString() : null),
                 exercises
             };
         }
 
         let inFlightSync = null;
-        async function syncWorkoutToServer(target, completedAtOverride = undefined) {
+        async function syncWorkoutToServer(target) {
             if (inFlightSync) inFlightSync.abort();
             const ctrl = new AbortController();
             inFlightSync = ctrl;
             try {
-                const payload = buildWorkoutPayload(target, completedAtOverride);
+                const payload = buildWorkoutPayload(target);
                 const resp = await fetch('/api/workout', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -817,20 +861,6 @@
             } finally {
                 if (inFlightSync === ctrl) inFlightSync = null;
             }
-        }
-
-        function syncToServer() {
-            const pd = programData.value;
-            if (!pd) return;
-            const st = appState.value;
-            const target = {
-                cycle: st.currentCycle,
-                week: st.currentWeek,
-                day: st.currentDay
-            };
-            syncWorkoutToServer(target).catch((err) => {
-                if (err?.name === 'AbortError') return;
-            });
         }
 
         // ── Audio ────────────────────────────────────────────────────
@@ -862,10 +892,37 @@
 
         // ── History helpers ──────────────────────────────────────────
 
+        // Weights are kept as the raw input string so partial entries ("-", "12.")
+        // survive re-renders of the controlled input; convert at the point of use.
         function hasWeightLogged(log) {
             const w = log?.weight;
-            if (w === null || w === undefined) return false;
+            if (w === null || w === undefined || w === '') return false;
             return Number.isFinite(Number(w));
+        }
+
+        function toWeightNumber(w) {
+            return hasWeightLogged({ weight: w }) ? Number(w) : null;
+        }
+
+        // Ghost values: what a set would inherit if checked off without typing —
+        // the nearest earlier set logged this session, else the same set number
+        // from the previous workout, else that workout's last completed set.
+        function getGhostForSet(exLogs, setIndex, prevSets) {
+            for (let i = setIndex - 1; i >= 0; i--) {
+                const prev = exLogs[i];
+                if (prev && (hasWeightLogged(prev) || prev.reps || prev.done)) {
+                    return { weight: hasWeightLogged(prev) ? prev.weight : null, reps: prev.reps || '' };
+                }
+            }
+            if (prevSets) {
+                const matching = prevSets[setIndex];
+                if (matching && hasWeightLogged(matching)) {
+                    return { weight: matching.weight, reps: matching.reps || '' };
+                }
+                const lastDone = [...prevSets].reverse().find(s => s && s.done && hasWeightLogged(s));
+                if (lastDone) return { weight: lastDone.weight, reps: lastDone.reps || '' };
+            }
+            return null;
         }
 
         function getAllHistory() {
@@ -960,88 +1017,55 @@
             return st.exerciseLogs[st.currentCycle][st.currentWeek][st.currentDay];
         }
 
+        function ensureSetLog(st, exerciseName, setNum) {
+            const dayLogs = getExerciseLogs(st, true);
+            if (!dayLogs[exerciseName]) dayLogs[exerciseName] = [];
+            const sets = dayLogs[exerciseName];
+            while (sets.length < setNum) sets.push({ weight: null, reps: '', done: false });
+            return sets;
+        }
+
         // ── Actions ──────────────────────────────────────────────────
 
-        function toggleSet(exerciseName, setNum, event) {
-            const row = event.target.closest('tr');
-            const kgInput = row.querySelector('.kg-input');
-            const repsInput = row.querySelector('.reps-input');
-            const rawWeight = kgInput?.value?.trim() || '';
-            const rawReps = repsInput?.value?.trim() || '';
-            const userTypedWeight = rawWeight !== '';
-            const userTypedReps = rawReps !== '';
+        function toggleSet(exerciseName, setNum) {
+            const st = appState.value;
+            const exLogs = st.exerciseLogs[st.currentCycle]?.[st.currentWeek]?.[st.currentDay]?.[exerciseName] || [];
+            const current = exLogs[setNum - 1];
+            const hasWeight = hasWeightLogged(current);
+            const hasReps = !!(current?.reps && String(current.reps).trim() !== '');
+            const ghost = (!hasWeight || !hasReps)
+                ? getGhostForSet(exLogs, setNum - 1, getPreviousWorkoutSets(exerciseName))
+                : null;
 
-            // Compute ghost fallback from state (previous completed set or last workout)
-            let ghostWeight = null, ghostReps = '';
-            if (!userTypedWeight || !userTypedReps) {
-                const st = appState.value;
-                const dayLogs = st.exerciseLogs[st.currentCycle]?.[st.currentWeek]?.[st.currentDay]?.[exerciseName] || [];
-                for (let i = setNum - 2; i >= 0; i--) {
-                    const prev = dayLogs[i];
-                    if (prev && (hasWeightLogged(prev) || prev.reps || prev.done)) {
-                        ghostWeight = prev.weight ?? null;
-                        ghostReps = prev.reps || '';
-                        break;
-                    }
-                }
-                if (ghostWeight === null && ghostReps === '') {
-                    const prevSets = getPreviousWorkoutSets(exerciseName);
-                    const prevSet = prevSets?.[setNum - 1];
-                    const lastDone = prevSets ? [...prevSets].reverse().find(s => s && s.done && hasWeightLogged(s)) : null;
-                    const fallback = (prevSet && hasWeightLogged(prevSet)) ? prevSet : lastDone;
-                    if (fallback) { ghostWeight = fallback.weight ?? null; ghostReps = fallback.reps || ''; }
-                }
-            }
-
-            const parsedWeight = parseFloat(rawWeight);
-            const weight = userTypedWeight ? (Number.isFinite(parsedWeight) ? parsedWeight : null) : ghostWeight;
-            const reps = userTypedReps ? rawReps : ghostReps;
-
-            mutateState(st => {
-                const dayLogs = getExerciseLogs(st, true);
-                if (!dayLogs[exerciseName]) dayLogs[exerciseName] = [];
-                while (dayLogs[exerciseName].length < setNum) {
-                    dayLogs[exerciseName].push({ weight: null, reps: '', done: false });
-                }
-                const log = dayLogs[exerciseName][setNum - 1];
+            mutateState(s => {
+                const sets = ensureSetLog(s, exerciseName, setNum);
+                const log = sets[setNum - 1];
                 if (log.done) {
                     log.done = false;
                     if (log.imputedWeight) { log.weight = null; log.imputedWeight = false; }
                     if (log.imputedReps) { log.reps = ''; log.imputedReps = false; }
                 } else {
-                    Object.assign(log, {
-                        weight, reps, done: true,
-                        imputedWeight: !userTypedWeight,
-                        imputedReps: !userTypedReps,
-                        cycle: st.currentCycle, week: st.currentWeek
-                    });
-                    st.restTimerStartedAt = Date.now();
+                    if (!hasWeight) log.weight = ghost ? ghost.weight : null;
+                    if (!hasReps) log.reps = ghost ? ghost.reps : '';
+                    log.done = true;
+                    log.imputedWeight = !hasWeight;
+                    log.imputedReps = !hasReps;
+                    s.restTimerStartedAt = Date.now();
                 }
             });
         }
 
         function updateWeight(exerciseName, setNum, value) {
             mutateState(st => {
-                const dayLogs = getExerciseLogs(st, true);
-                if (!dayLogs[exerciseName]) dayLogs[exerciseName] = [];
-                while (dayLogs[exerciseName].length < setNum) {
-                    dayLogs[exerciseName].push({ weight: null, reps: '', done: false });
-                }
-                const parsed = parseFloat(value);
-                const log = dayLogs[exerciseName][setNum - 1];
-                log.weight = Number.isFinite(parsed) ? parsed : null;
+                const log = ensureSetLog(st, exerciseName, setNum)[setNum - 1];
+                log.weight = value === '' ? null : value;
                 log.imputedWeight = false;
             });
         }
 
         function updateReps(exerciseName, setNum, value) {
             mutateState(st => {
-                const dayLogs = getExerciseLogs(st, true);
-                if (!dayLogs[exerciseName]) dayLogs[exerciseName] = [];
-                while (dayLogs[exerciseName].length < setNum) {
-                    dayLogs[exerciseName].push({ weight: null, reps: '', done: false });
-                }
-                const log = dayLogs[exerciseName][setNum - 1];
+                const log = ensureSetLog(st, exerciseName, setNum)[setNum - 1];
                 log.reps = value;
                 log.imputedReps = false;
             });
@@ -1072,9 +1096,7 @@
 
         function addSet(exerciseName) {
             mutateState(st => {
-                const dayLogs = getExerciseLogs(st, true);
-                if (!dayLogs[exerciseName]) dayLogs[exerciseName] = [];
-                dayLogs[exerciseName].push({ weight: null, reps: '', done: false });
+                ensureSetLog(st, exerciseName, 0).push({ weight: null, reps: '', done: false });
             });
         }
 
@@ -1113,15 +1135,19 @@
             isFinishing.value = true;
 
             // Always persist local state immediately, but don't debounce-sync here.
+            // Keep the original timestamp when re-finishing an already-complete day.
             mutateState(s => {
                 if (!s.dayCompletion[target.cycle]) s.dayCompletion[target.cycle] = {};
                 if (!s.dayCompletion[target.cycle][target.week]) s.dayCompletion[target.cycle][target.week] = {};
-                s.dayCompletion[target.cycle][target.week][target.day] = true;
+                s.dayCompletion[target.cycle][target.week][target.day] =
+                    typeof wasComplete === 'string' ? wasComplete : completedAt;
                 s.restTimerStartedAt = null;
             }, { skipSync: true });
 
             try {
-                await syncWorkoutToServer(target, completedAt);
+                await syncWorkoutToServer(target);
+                dirtyTargets.delete(`${target.cycle}|${target.week}|${target.day}`);
+                flushDirtyTargets();
 
                 // Only advance after server confirms save.
                 if (!wasComplete) {
@@ -1244,28 +1270,12 @@
             const hasRealReps = !!logData?.reps;
             const isTimeMetric = ex?.metric === 'time';
 
-            function getGhostForSet(setIndex) {
-                for (let i = setIndex - 1; i >= 0; i--) {
-                    const prev = exLogs[i];
-                    if (prev && (hasWeightLogged(prev) || prev.reps || prev.done)) {
-                        return { weight: prev.weight ?? '', reps: prev.reps || '' };
-                    }
-                }
-                if (prevSets) {
-                    const matchingPrev = prevSets[setIndex];
-                    if (matchingPrev && hasWeightLogged(matchingPrev)) return { weight: matchingPrev.weight ?? '', reps: matchingPrev.reps || '' };
-                    const lastDone = [...prevSets].reverse().find(s => s && s.done && hasWeightLogged(s));
-                    if (lastDone) return { weight: lastDone.weight ?? '', reps: lastDone.reps || '' };
-                }
-                return null;
-            }
-
-            const ghost = getGhostForSet(set - 1);
-            const weight = hasRealWeight ? logData.weight : '';
+            const ghost = getGhostForSet(exLogs, set - 1, prevSets);
+            const weight = logData?.weight ?? '';
             const reps = hasRealReps ? logData.reps : '';
             const done = !!logData?.done;
-            const ghostWeight = hasRealWeight ? '' : (ghost ? ghost.weight : '');
-            const ghostReps = hasRealReps ? '' : (ghost ? ghost.reps : '');
+            const ghostWeight = (!hasRealWeight && ghost && ghost.weight != null) ? ghost.weight : '';
+            const ghostReps = (!hasRealReps && ghost) ? ghost.reps : '';
 
             const prevSetData = prevSets ? prevSets[set - 1] : null;
             const prevDisplay = (prevSetData && prevSetData.done && hasWeightLogged(prevSetData)) ? `${prevSetData.weight}×${prevSetData.reps}` : '';
@@ -1283,7 +1293,7 @@
                     <td class="set-num">${set}${isExtra ? '*' : ''}</td>
                     <td class="prev-val">${prevDisplay}</td>
                     <td><input type="number" class="kg-input" value=${weight}
-                        onChange=${(e) => updateWeight(exerciseName, set, e.target.value)}
+                        onInput=${(e) => updateWeight(exerciseName, set, e.target.value)}
                         placeholder=${weightPlaceholder} step="1" /></td>
                     <td><input type="text" class="reps-input" value=${reps}
                         inputmode=${isTimeMetric ? 'text' : 'numeric'}
@@ -1293,7 +1303,7 @@
                     <td>${isExtra ? html`<button class="remove-set-btn" onClick=${() => removeSet(exerciseName, set)}>✕</button>` : ''}</td>
                     <td class="check-col">
                         <div class="check-btn ${done ? 'checked' : ''}"
-                             onClick=${(e) => toggleSet(exerciseName, set, e)}>
+                             onClick=${() => toggleSet(exerciseName, set)}>
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
                         </div>
                     </td>
@@ -1303,8 +1313,7 @@
 
         function ExerciseRow({ ex, logs }) {
             const st = appState.value;
-            if (!logs[ex.name]) logs[ex.name] = [];
-            const exLogs = logs[ex.name];
+            const exLogs = logs[ex.name] || [];
             const prevSets = getPreviousWorkoutSets(ex.name);
             const actualSets = Math.max(ex.sets, exLogs.length);
             const note = ex.note ? `${ex.reps} · ${ex.note}` : ex.reps;
