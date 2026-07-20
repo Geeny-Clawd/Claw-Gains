@@ -213,35 +213,13 @@ function ensureSetLog(st, exerciseName, setNum) {
 
 // ── Rest-done notification ───────────────────────────────────
 
-// iOS only allows audio after a user gesture, so the context is created and
-// resumed inside toggleSet (the tap) and merely played later by the timer.
-let audioCtx = null;
 function ensureAudioReady() {
-    try {
-        const AC = window.AudioContext || window.webkitAudioContext;
-        if (!audioCtx && AC) audioCtx = new AC();
-        if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume().catch(() => {});
-    } catch { /* no audio is fine; the chip still turns green */ }
+    // Intentionally no-op. Creating or resuming Web Audio can steal mobile
+    // audio focus and mute music apps when the tracker is opened/used.
 }
 
 function notifyRestDone() {
     try { navigator.vibrate?.(200); } catch { /* unsupported (iOS) */ }
-    try {
-        if (!audioCtx || audioCtx.state !== 'running') return;
-        for (const offset of [0, 0.22]) {
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            const t = audioCtx.currentTime + offset;
-            osc.type = 'sine';
-            osc.frequency.value = 880;
-            gain.gain.setValueAtTime(0.0001, t);
-            gain.gain.exponentialRampToValueAtTime(0.18, t + 0.02);
-            gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.15);
-            osc.connect(gain).connect(audioCtx.destination);
-            osc.start(t);
-            osc.stop(t + 0.16);
-        }
-    } catch { /* never let a beep break logging */ }
 }
 
 // ── Actions ──────────────────────────────────────────────────

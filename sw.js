@@ -5,7 +5,7 @@
 // response refreshes the cache. Offline — a gym dead spot — the app boots
 // and runs from the last good copy; workout state lives in localStorage,
 // so logging keeps working and syncs when the connection returns.
-const CACHE_NAME = 'clawgains-v1';
+const CACHE_NAME = 'clawgains-v2';
 
 const PRECACHE = [
     '/',
