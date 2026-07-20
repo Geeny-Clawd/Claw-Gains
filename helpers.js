@@ -101,9 +101,26 @@ function parseSavedState(savedStateJson) {
     return null;
 }
 
+function hasNestedValue(value) {
+    if (Array.isArray(value)) return value.some(hasNestedValue);
+    if (value && typeof value === 'object') {
+        return Object.values(value).some(hasNestedValue);
+    }
+    return value !== null && value !== undefined && value !== '' && value !== false;
+}
+
+function hasStoredWorkoutData(state) {
+    return [
+        state.exerciseLogs,
+        state.exerciseNotes,
+        state.dayNotes,
+        state.dayCompletion,
+    ].some(hasNestedValue);
+}
+
 export async function loadInitialState(savedStateJson, fetchServerWorkouts) {
     const savedState = parseSavedState(savedStateJson);
-    if (savedState) return savedState;
+    if (savedState && hasStoredWorkoutData(savedState)) return savedState;
     const workouts = await fetchServerWorkouts();
     return restoreWorkoutsIntoState(defaultState, workouts);
 }

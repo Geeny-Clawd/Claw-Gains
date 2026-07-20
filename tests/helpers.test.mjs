@@ -138,6 +138,26 @@ test('empty installation fetches and restores server workout history', async () 
     assert.equal(restored.dayCompletion[1].A[1], '2026-07-18T18:30:00Z');
 });
 
+test('previously opened but still empty installation also restores from server', async () => {
+    let calls = 0;
+    const restored = await loadInitialState(JSON.stringify(defaultState), async () => {
+        calls += 1;
+        return [{
+            cycle: 3,
+            week: 'B',
+            day: 2,
+            completed_at: '2026-07-19T18:30:00Z',
+            exercises: [{
+                name: 'Deadlift',
+                sets: [{ set_num: 1, weight: 120, reps: '5', done: true }],
+            }],
+        }];
+    });
+
+    assert.equal(calls, 1);
+    assert.equal(restored.exerciseLogs[3].B[2].Deadlift[0].weight, 120);
+});
+
 // ── weight handling ──────────────────────────────────────────
 
 test('hasWeightLogged accepts numbers, numeric strings, zero, and negatives', () => {
