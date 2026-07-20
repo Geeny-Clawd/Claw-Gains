@@ -13,6 +13,8 @@ import {
     getMainExercisesForWeek,
     buildWorkoutPayload,
     getRestTargetSeconds,
+    restoreWorkoutsIntoState,
+    loadInitialState,
 } from '../helpers.js';
 
 const program = {
@@ -62,6 +64,78 @@ test('sanitizeState keeps valid rest targets and nulls bad ones', () => {
     assert.equal(sanitizeState({ restTimerTarget: -5 }).restTimerTarget, null);
     assert.equal(sanitizeState({ restTimerTarget: 'long' }).restTimerTarget, null);
     assert.equal(sanitizeState({}).restTimerTarget, null); // legacy state
+});
+
+test('server workouts restore logs, notes, and completion into empty state', () => {
+    const restored = restoreWorkoutsIntoState(defaultState, [{
+        cycle: 2,
+        week: 'B',
+        day: 3,
+        day_note: 'Strong session',
+        completed_at: '2026-07-18T18:30:00Z',
+        exercises: [{
+            name: 'Front Squat',
+            section: 'mainA',
+            note: 'Stay upright',
+            sets: [{ set_num: 1, weight: 85, reps: '5', done: true }],
+        }],
+    }]);
+
+    assert.deepEqual(
+        restored.exerciseLogs[2].B[3]['Front Squat'],
+        [{ weight: 85, reps: '5', done: true }],
+    );
+    assert.equal(restored.dayNotes[2].B[3], 'Strong session');
+    assert.equal(restored.exerciseNotes[2].B[3]['Front Squat'], 'Stay upright');
+    assert.equal(restored.dayCompletion[2].B[3], '2026-07-18T18:30:00Z');
+});
+
+test('existing local state is never replaced during server bootstrap', async () => {
+    const local = {
+        ...defaultState,
+        currentCycle: 4,
+        exerciseLogs: { 4: { A: { 1: { Press: [{ weight: 40, reps: '8', done: true }] } } } },
+    };
+    let serverFetches = 0;
+
+    const selected = await loadInitialState(JSON.stringify(local), async () => {
+        serverFetches += 1;
+        return [{
+            cycle: 1,
+            week: 'A',
+            day: 1,
+            exercises: [{
+                name: 'Squat',
+                sets: [{ set_num: 1, weight: 100, reps: '5', done: true }],
+            }],
+        }];
+    });
+
+    assert.equal(serverFetches, 0);
+    assert.equal(selected.currentCycle, 4);
+    assert.equal(selected.exerciseLogs[1], undefined);
+    assert.equal(selected.exerciseLogs[4].A[1].Press[0].weight, 40);
+});
+
+test('empty installation fetches and restores server workout history', async () => {
+    let calls = 0;
+    const restored = await loadInitialState(null, async () => {
+        calls += 1;
+        return [{
+            cycle: 1,
+            week: 'A',
+            day: 1,
+            completed_at: '2026-07-18T18:30:00Z',
+            exercises: [{
+                name: 'Squat',
+                sets: [{ set_num: 1, weight: 100, reps: '5', done: true }],
+            }],
+        }];
+    });
+
+    assert.equal(calls, 1);
+    assert.equal(restored.exerciseLogs[1].A[1].Squat[0].weight, 100);
+    assert.equal(restored.dayCompletion[1].A[1], '2026-07-18T18:30:00Z');
 });
 
 // ── weight handling ──────────────────────────────────────────

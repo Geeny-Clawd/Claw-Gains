@@ -40,6 +40,74 @@ export function sanitizeState(raw = {}) {
 // Rest targets (seconds) by program guidance: compounds 2–3 min (use the
 // midpoint), accessories/prehab 60–90 s (use the top), warm-up and
 // stretching just need a breather. The chip signals when the target is hit.
+export function restoreWorkoutsIntoState(baseState, workouts) {
+    const state = JSON.parse(JSON.stringify(sanitizeState(baseState)));
+    for (const workout of Array.isArray(workouts) ? workouts : []) {
+        const cycle = Number(workout?.cycle);
+        const day = Number(workout?.day);
+        const week = workout?.week;
+        if (!Number.isInteger(cycle) || cycle < 1 || !Number.isInteger(day)
+            || day < 1 || day > 5 || !['A', 'B'].includes(week)) continue;
+
+        if (!state.exerciseLogs[cycle]) state.exerciseLogs[cycle] = {};
+        if (!state.exerciseLogs[cycle][week]) state.exerciseLogs[cycle][week] = {};
+        if (!state.exerciseLogs[cycle][week][day]) state.exerciseLogs[cycle][week][day] = {};
+
+        for (const exercise of Array.isArray(workout.exercises) ? workout.exercises : []) {
+            if (!exercise || typeof exercise.name !== 'string' || !exercise.name) continue;
+            const sets = [];
+            for (const storedSet of Array.isArray(exercise.sets) ? exercise.sets : []) {
+                const setNum = Number(storedSet?.set_num);
+                if (!Number.isInteger(setNum) || setNum < 1) continue;
+                while (sets.length < setNum) sets.push({ weight: null, reps: '', done: false });
+                sets[setNum - 1] = {
+                    weight: storedSet.weight,
+                    reps: storedSet.reps || '',
+                    done: Boolean(storedSet.done),
+                };
+            }
+            state.exerciseLogs[cycle][week][day][exercise.name] = sets;
+            if (exercise.note) {
+                if (!state.exerciseNotes[cycle]) state.exerciseNotes[cycle] = {};
+                if (!state.exerciseNotes[cycle][week]) state.exerciseNotes[cycle][week] = {};
+                if (!state.exerciseNotes[cycle][week][day]) state.exerciseNotes[cycle][week][day] = {};
+                state.exerciseNotes[cycle][week][day][exercise.name] = exercise.note;
+            }
+        }
+        if (workout.day_note) {
+            if (!state.dayNotes[cycle]) state.dayNotes[cycle] = {};
+            if (!state.dayNotes[cycle][week]) state.dayNotes[cycle][week] = {};
+            state.dayNotes[cycle][week][day] = workout.day_note;
+        }
+        if (workout.completed_at) {
+            if (!state.dayCompletion[cycle]) state.dayCompletion[cycle] = {};
+            if (!state.dayCompletion[cycle][week]) state.dayCompletion[cycle][week] = {};
+            state.dayCompletion[cycle][week][day] = workout.completed_at;
+        }
+    }
+    return state;
+}
+
+function parseSavedState(savedStateJson) {
+    if (typeof savedStateJson !== 'string' || !savedStateJson) return null;
+    try {
+        const parsed = JSON.parse(savedStateJson);
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+            return sanitizeState(parsed);
+        }
+    } catch {
+        // Corrupt browser state should recover from the server.
+    }
+    return null;
+}
+
+export async function loadInitialState(savedStateJson, fetchServerWorkouts) {
+    const savedState = parseSavedState(savedStateJson);
+    if (savedState) return savedState;
+    const workouts = await fetchServerWorkouts();
+    return restoreWorkoutsIntoState(defaultState, workouts);
+}
+
 export function getRestTargetSeconds(section) {
     switch (section) {
         case 'mainA': return 150;

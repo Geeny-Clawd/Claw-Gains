@@ -1,6 +1,5 @@
 import { h, render, useEffect, useCallback, signal, htm } from './vendor/preact-bundle.js';
 import {
-    defaultState,
     sanitizeState,
     invariant,
     getMainExercisesForWeek,
@@ -12,6 +11,7 @@ import {
     buildWorkoutPayload,
     getSectionForExercise,
     getRestTargetSeconds,
+    loadInitialState,
 } from './helpers.js';
 
 const html = htm.bind(h);
@@ -107,17 +107,8 @@ window.addEventListener('unhandledrejection', (evt) => {
 
 // ── Signals ──────────────────────────────────────────────────
 
-function loadState() {
-    const saved = localStorage.getItem('clawgains_state');
-    if (!saved) return { ...defaultState };
-    try {
-        return sanitizeState(JSON.parse(saved));
-    } catch {
-        return { ...defaultState };
-    }
-}
-
-const appState = signal(loadState());
+const savedStateJson = localStorage.getItem('clawgains_state');
+const appState = signal(sanitizeState());
 const nowTick = signal(Date.now());
 const programData = signal(null);
 const isFinishing = signal(false);
@@ -719,9 +710,26 @@ function App() {
 
 async function init() {
     try {
-        const resp = await fetch('/program.json');
-        if (!resp.ok) throw new Error(`Failed to load program.json (${resp.status})`);
-        programData.value = await resp.json();
+        const [programResponse, initialState] = await Promise.all([
+            fetch('/program.json'),
+            loadInitialState(savedStateJson, async () => {
+                const response = await fetch('/api/workouts', { cache: 'no-store' });
+                if (!response.ok) {
+                    throw new Error(`Failed to restore workouts (${response.status})`);
+                }
+                const payload = await response.json();
+                if (!Array.isArray(payload?.workouts)) {
+                    throw new Error('Workout history response is invalid');
+                }
+                return payload.workouts;
+            }),
+        ]);
+        if (!programResponse.ok) {
+            throw new Error(`Failed to load program.json (${programResponse.status})`);
+        }
+        programData.value = await programResponse.json();
+        appState.value = initialState;
+        localStorage.setItem('clawgains_state', JSON.stringify(initialState));
         render(html`<${App} />`, document.getElementById('app'));
         const fallback = document.getElementById('bootFallback');
         if (fallback) fallback.style.display = 'none';

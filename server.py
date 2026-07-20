@@ -138,6 +138,66 @@ def save_workout():
     return jsonify({"ok": True})
 
 
+@app.route("/api/workouts", methods=["GET"])
+def list_workouts():
+    conn = get_db()
+    try:
+        workout_rows = conn.execute(
+            """
+            SELECT id, cycle, week, day, note, completed_at
+            FROM workouts
+            ORDER BY cycle, CASE week WHEN 'A' THEN 0 ELSE 1 END, day
+            """
+        ).fetchall()
+        workouts = []
+        for workout_id, cycle, week, day, note, completed_at in workout_rows:
+            exercise_rows = conn.execute(
+                """
+                SELECT id, name, section, note
+                FROM exercises
+                WHERE workout_id = ?
+                ORDER BY id
+                """,
+                (workout_id,),
+            ).fetchall()
+            exercises = []
+            for exercise_id, name, section, exercise_note in exercise_rows:
+                set_rows = conn.execute(
+                    """
+                    SELECT set_num, weight, reps, done
+                    FROM sets
+                    WHERE exercise_id = ?
+                    ORDER BY set_num
+                    """,
+                    (exercise_id,),
+                ).fetchall()
+                exercises.append({
+                    "name": name,
+                    "section": section,
+                    "note": exercise_note,
+                    "sets": [
+                        {
+                            "set_num": set_num,
+                            "weight": weight,
+                            "reps": reps,
+                            "done": bool(done),
+                        }
+                        for set_num, weight, reps, done in set_rows
+                    ],
+                })
+            workouts.append({
+                "cycle": cycle,
+                "week": week,
+                "day": day,
+                "day_note": note,
+                "completed_at": completed_at,
+                "exercises": exercises,
+            })
+    finally:
+        conn.close()
+    return jsonify({"workouts": workouts})
+
+
 @app.route("/api/client-error", methods=["POST"])
 def client_error():
     data = request.get_json(silent=True) or {}
