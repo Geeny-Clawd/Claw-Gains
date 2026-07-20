@@ -90,6 +90,30 @@ test('server workouts restore logs, notes, and completion into empty state', () 
     assert.equal(restored.dayCompletion[2].B[3], '2026-07-18T18:30:00Z');
 });
 
+test('restored navigation follows the latest completed server workout', () => {
+    const olderIncomplete = {
+        cycle: 1,
+        week: 'A',
+        day: 5,
+        completed_at: null,
+        exercises: [],
+    };
+    const latestWeek = Array.from({ length: 5 }, (_, index) => ({
+        cycle: 6,
+        week: 'B',
+        day: index + 1,
+        completed_at: `2026-07-${String(index + 15).padStart(2, '0')}T18:30:00Z`,
+        exercises: [],
+    }));
+
+    const restored = restoreWorkoutsIntoState(defaultState, [olderIncomplete, ...latestWeek]);
+
+    assert.equal(restored.currentCycle, 6);
+    assert.equal(restored.currentWeek, 'B');
+    assert.equal(restored.currentDay, 5);
+    assert.equal(Object.keys(restored.dayCompletion[6].B).length, 5);
+});
+
 test('existing local state is never replaced during server bootstrap', async () => {
     const local = {
         ...defaultState,
@@ -156,6 +180,47 @@ test('previously opened but still empty installation also restores from server',
 
     assert.equal(calls, 1);
     assert.equal(restored.exerciseLogs[3].B[2].Deadlift[0].weight, 120);
+});
+
+test('standalone migration fills missing server data without replacing local edits', async () => {
+    const local = {
+        ...defaultState,
+        exerciseLogs: {
+            1: { A: { 1: { Press: [{ weight: 40, reps: '8', done: true }] } } },
+        },
+    };
+    const latestWeek = Array.from({ length: 5 }, (_, index) => ({
+        cycle: 6,
+        week: 'B',
+        day: index + 1,
+        completed_at: `2026-07-${String(index + 15).padStart(2, '0')}T18:30:00Z`,
+        exercises: index === 4 ? [{
+            name: 'Deadlift',
+            sets: [{ set_num: 1, weight: 120, reps: '5', done: true }],
+        }] : [],
+    }));
+    const workouts = [{
+        cycle: 1,
+        week: 'A',
+        day: 1,
+        exercises: [
+            { name: 'Press', sets: [{ set_num: 1, weight: 35, reps: '6', done: true }] },
+            { name: 'Squat', sets: [{ set_num: 1, weight: 100, reps: '5', done: true }] },
+        ],
+    }, ...latestWeek];
+
+    const restored = await loadInitialState(
+        JSON.stringify(local),
+        async () => workouts,
+        { refreshFromServer: true },
+    );
+
+    assert.equal(restored.exerciseLogs[1].A[1].Press[0].weight, 40);
+    assert.equal(restored.exerciseLogs[1].A[1].Squat[0].weight, 100);
+    assert.equal(restored.exerciseLogs[6].B[5].Deadlift[0].weight, 120);
+    assert.equal(restored.currentCycle, 6);
+    assert.equal(restored.currentWeek, 'B');
+    assert.equal(restored.currentDay, 5);
 });
 
 // ── weight handling ──────────────────────────────────────────

@@ -108,6 +108,8 @@ window.addEventListener('unhandledrejection', (evt) => {
 // ── Signals ──────────────────────────────────────────────────
 
 const savedStateJson = localStorage.getItem('clawgains_state');
+const isStandaloneInstallation = window.matchMedia?.('(display-mode: standalone)').matches
+    || window.navigator.standalone === true;
 const appState = signal(sanitizeState());
 const nowTick = signal(Date.now());
 const programData = signal(null);
@@ -722,7 +724,7 @@ async function init() {
                     throw new Error('Workout history response is invalid');
                 }
                 return payload.workouts;
-            }),
+            }, { refreshFromServer: isStandaloneInstallation }),
         ]);
         if (!programResponse.ok) {
             throw new Error(`Failed to load program.json (${programResponse.status})`);

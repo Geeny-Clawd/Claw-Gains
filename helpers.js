@@ -1,6 +1,8 @@
 // Pure app logic: state shape, sanitization, history lookups, payload building.
 // No DOM, no globals — everything takes its inputs explicitly so node can test it.
 
+export const SERVER_RESTORE_VERSION = 1;
+
 export const defaultState = {
     currentCycle: 1,
     currentDay: 1,
@@ -10,7 +12,8 @@ export const defaultState = {
     dayNotes: {},
     exerciseNotes: {},
     restTimerStartedAt: null,
-    restTimerTarget: null
+    restTimerTarget: null,
+    serverRestoreVersion: 0,
 };
 
 export function sanitizeState(raw = {}) {
@@ -33,6 +36,10 @@ export function sanitizeState(raw = {}) {
     st.restTimerStartedAt = Number.isFinite(restAt) && restAt > 0 ? restAt : null;
     const restTarget = Number(st.restTimerTarget);
     st.restTimerTarget = Number.isFinite(restTarget) && restTarget > 0 ? Math.floor(restTarget) : null;
+    const restoreVersion = Number(st.serverRestoreVersion);
+    st.serverRestoreVersion = Number.isFinite(restoreVersion) && restoreVersion >= 0
+        ? Math.floor(restoreVersion)
+        : 0;
 
     return st;
 }
@@ -42,6 +49,7 @@ export function sanitizeState(raw = {}) {
 // stretching just need a breather. The chip signals when the target is hit.
 export function restoreWorkoutsIntoState(baseState, workouts) {
     const state = JSON.parse(JSON.stringify(sanitizeState(baseState)));
+    let latestCompletion = null;
     for (const workout of Array.isArray(workouts) ? workouts : []) {
         const cycle = Number(workout?.cycle);
         const day = Number(workout?.day);
@@ -55,36 +63,56 @@ export function restoreWorkoutsIntoState(baseState, workouts) {
 
         for (const exercise of Array.isArray(workout.exercises) ? workout.exercises : []) {
             if (!exercise || typeof exercise.name !== 'string' || !exercise.name) continue;
-            const sets = [];
+            const existingSets = state.exerciseLogs[cycle][week][day][exercise.name];
+            const sets = Array.isArray(existingSets) ? existingSets : [];
             for (const storedSet of Array.isArray(exercise.sets) ? exercise.sets : []) {
                 const setNum = Number(storedSet?.set_num);
                 if (!Number.isInteger(setNum) || setNum < 1) continue;
                 while (sets.length < setNum) sets.push({ weight: null, reps: '', done: false });
-                sets[setNum - 1] = {
-                    weight: storedSet.weight,
-                    reps: storedSet.reps || '',
-                    done: Boolean(storedSet.done),
-                };
+                if (!hasNestedValue(sets[setNum - 1])) {
+                    sets[setNum - 1] = {
+                        weight: storedSet.weight,
+                        reps: storedSet.reps || '',
+                        done: Boolean(storedSet.done),
+                    };
+                }
             }
             state.exerciseLogs[cycle][week][day][exercise.name] = sets;
             if (exercise.note) {
                 if (!state.exerciseNotes[cycle]) state.exerciseNotes[cycle] = {};
                 if (!state.exerciseNotes[cycle][week]) state.exerciseNotes[cycle][week] = {};
                 if (!state.exerciseNotes[cycle][week][day]) state.exerciseNotes[cycle][week][day] = {};
-                state.exerciseNotes[cycle][week][day][exercise.name] = exercise.note;
+                if (!hasNestedValue(state.exerciseNotes[cycle][week][day][exercise.name])) {
+                    state.exerciseNotes[cycle][week][day][exercise.name] = exercise.note;
+                }
             }
         }
         if (workout.day_note) {
             if (!state.dayNotes[cycle]) state.dayNotes[cycle] = {};
             if (!state.dayNotes[cycle][week]) state.dayNotes[cycle][week] = {};
-            state.dayNotes[cycle][week][day] = workout.day_note;
+            if (!hasNestedValue(state.dayNotes[cycle][week][day])) {
+                state.dayNotes[cycle][week][day] = workout.day_note;
+            }
         }
         if (workout.completed_at) {
             if (!state.dayCompletion[cycle]) state.dayCompletion[cycle] = {};
             if (!state.dayCompletion[cycle][week]) state.dayCompletion[cycle][week] = {};
-            state.dayCompletion[cycle][week][day] = workout.completed_at;
+            if (!hasNestedValue(state.dayCompletion[cycle][week][day])) {
+                state.dayCompletion[cycle][week][day] = workout.completed_at;
+            }
+            const completedAt = Date.parse(workout.completed_at);
+            if (Number.isFinite(completedAt)
+                && (!latestCompletion || completedAt > latestCompletion.completedAt)) {
+                latestCompletion = { cycle, week, day, completedAt };
+            }
         }
     }
+    if (latestCompletion) {
+        state.currentCycle = latestCompletion.cycle;
+        state.currentWeek = latestCompletion.week;
+        state.currentDay = Math.min(latestCompletion.day + 1, 5);
+    }
+    state.serverRestoreVersion = SERVER_RESTORE_VERSION;
     return state;
 }
 
@@ -118,11 +146,23 @@ function hasStoredWorkoutData(state) {
     ].some(hasNestedValue);
 }
 
-export async function loadInitialState(savedStateJson, fetchServerWorkouts) {
+export async function loadInitialState(
+    savedStateJson,
+    fetchServerWorkouts,
+    { refreshFromServer = false } = {},
+) {
     const savedState = parseSavedState(savedStateJson);
-    if (savedState && hasStoredWorkoutData(savedState)) return savedState;
-    const workouts = await fetchServerWorkouts();
-    return restoreWorkoutsIntoState(defaultState, workouts);
+    const hasSavedData = savedState && hasStoredWorkoutData(savedState);
+    const needsStandaloneMigration = refreshFromServer
+        && savedState?.serverRestoreVersion < SERVER_RESTORE_VERSION;
+    if (hasSavedData && !needsStandaloneMigration) return savedState;
+    try {
+        const workouts = await fetchServerWorkouts();
+        return restoreWorkoutsIntoState(savedState || defaultState, workouts);
+    } catch (error) {
+        if (hasSavedData) return savedState;
+        throw error;
+    }
 }
 
 export function getRestTargetSeconds(section) {
